@@ -1,0 +1,248 @@
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_CONFIG, ApiResponse, PaginatedResponse, ApiError } from './apiConfig';
+import { CURRENT_ENV, logger } from './environment';
+import { ErrorService } from './ErrorService';
+
+export class ApiService {
+  private api: AxiosInstance;
+  private isDevelopment: boolean = CURRENT_ENV.isDevelopment;
+
+  constructor() {
+    this.api = axios.create({
+      baseURL: CURRENT_ENV.apiBaseUrl,
+      timeout: CURRENT_ENV.timeout,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+
+    this.setupInterceptors();
+    logger.info('ApiService initialisé', { 
+      baseURL: CURRENT_ENV.apiBaseUrl, 
+      isDevelopment: this.isDevelopment 
+    });
+  }
+
+  private setupInterceptors() {
+    // Intercepteur pour ajouter le token d'authentification
+    this.api.interceptors.request.use(
+      async (config: any) => {
+        try {
+          const userData = await AsyncStorage.getItem('user');
+          if (userData) {
+            const user = JSON.parse(userData);
+            if (user.token) {
+              config.headers.Authorization = `Bearer ${user.token}`;
+            }
+          }
+        } catch (error) {
+          console.error('Erreur lors de la récupération du token:', error);
+        }
+        return config;
+      },
+      (error: any) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Intercepteur pour gérer les réponses
+    this.api.interceptors.response.use(
+      (response: AxiosResponse) => {
+        return response;
+      },
+      async (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Token expiré, nettoyer le stockage
+          await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('auth_token');
+        }
+        return Promise.reject(this.handleApiError(error));
+      }
+    );
+  }
+
+  private handleApiError(error: AxiosError): ApiError {
+    if (error.response) {
+      // Erreur de réponse du serveur
+      const responseData = error.response.data as any;
+      return {
+        message: responseData?.message || 'Erreur du serveur',
+        code: error.response.status.toString(),
+        details: error.response.data,
+      };
+    } else if (error.request) {
+      // Erreur de réseau
+      return {
+        message: 'Erreur de connexion réseau',
+        code: 'NETWORK_ERROR',
+        details: error.request,
+      };
+    } else {
+      // Autre erreur
+      return {
+        message: error.message || 'Erreur inconnue',
+        code: 'UNKNOWN_ERROR',
+        details: error,
+      };
+    }
+  }
+
+  // Méthode générique pour les appels API
+  private async makeRequest<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    endpoint: string,
+    data?: any,
+    params?: any
+  ): Promise<T> {
+    try {
+      logger.debug('Appel API', { method, endpoint, data, params });
+      const response = await this.api.request({
+        method,
+        url: endpoint,
+        data,
+        params,
+      });
+      logger.debug('Réponse API', { endpoint, status: response.status, data: response.data });
+      return response.data;
+    } catch (error) {
+      logger.error('Erreur API', { endpoint, error });
+      throw error;
+    }
+  }
+
+  // ===== MÉTHODES POUR LES ASSURÉS =====
+
+  // Famille - Utiliser les vrais endpoints comme dans l'original
+  async getFamilyMembers(request: any): Promise<any> {
+    return this.makeRequest('POST', '/beneficiaire/getByCriteria', request);
+  }
+
+  async getFamilyConsultations(request: any): Promise<any> {
+    return this.makeRequest('POST', '/famille/getPrestationActe', request);
+  }
+
+  async getFamilyPrescriptions(request: any): Promise<any> {
+    return this.makeRequest('POST', '/famille/getPrescriptionActe', request);
+  }
+
+  async getFamilyPrimes(request: any): Promise<any> {
+    return this.makeRequest('POST', '/beneficiairePrime/getByCriteria', request);
+  }
+
+  // Dépenses
+  async getExpenses(request: any): Promise<any> {
+    return this.makeRequest('POST', '/famille/depense', request);
+  }
+
+  // Médicaments
+  async getMedicaments(request: any): Promise<any> {
+    return this.makeRequest('POST', '/medicament/getByCriteria', request);
+  }
+
+  async getMedicamentDetails(medicamentId: string): Promise<any> {
+    return this.makeRequest('GET', `/medicament/${medicamentId}`);
+  }
+
+  // ===== MÉTHODES POUR LES PRESTATAIRES =====
+
+  // Vérification d'éligibilité
+  async checkBeneficiaryEligibility(payload: any): Promise<any> {
+    return this.makeRequest('POST', '/beneficiaire/search', payload);
+  }
+
+  // Servir médicaments
+  async serveMedicaments(data: any): Promise<any> {
+    return this.makeRequest('POST', '/medicament/order', data);
+  }
+
+  // KPIs prestataire
+  async getKpiPrestataire(request: any): Promise<any> {
+    return this.makeRequest('POST', '/kpi/depensePrestationPrestataire', request);
+  }
+
+  // Résumé basique prestataire
+  async getBasicSummaryPrestataire(request: any): Promise<any> {
+    return this.makeRequest('POST', '/kpi/basicSummaryPrestataire', request);
+  }
+
+  // Prestations
+  async getPrestations(request: any): Promise<any> {
+    return this.makeRequest('POST', '/prestation/getByCriteria', request);
+  }
+
+  // Patients
+  async getPatients(request: any): Promise<any> {
+    return this.makeRequest('POST', '/patient/getByCriteria', request);
+  }
+
+  // Rapports
+  async getReports(request: any): Promise<any> {
+    return this.makeRequest('POST', '/report/getByCriteria', request);
+  }
+
+  // Pharmacies de garde
+  async getPharmacyGuard(request: any): Promise<any> {
+    return this.makeRequest('POST', '/gardePharmacie/getByCriteria', request);
+  }
+
+  // Réseau de soins
+  async getCareNetwork(request: any): Promise<any> {
+    return this.makeRequest('POST', '/famille/reseauDeSoin', request);
+  }
+
+  // ===== MÉTHODES D'AUTHENTIFICATION =====
+
+  async login(credentials: { login: string; password: string }): Promise<any> {
+    const request = {
+      data: {
+        login: credentials.login,
+        password: credentials.password
+      },
+      filiale_id: null,
+      user_id: null,
+      prestataire_id: null
+    };
+    return this.makeRequest('POST', '/user/login', request);
+  }
+
+  async logout(): Promise<void> {
+    try {
+      // Le logout se fait côté client en supprimant les tokens
+      logger.info('Logout côté client - suppression des tokens');
+    } catch (error) {
+      logger.error('Erreur lors de la déconnexion:', error);
+    }
+  }
+
+  async refreshToken(): Promise<any> {
+    return this.makeRequest('POST', '/user/refresh', {});
+  }
+
+  // Recherche bénéficiaire (éligibilité) par matricule ou numéro CNAM (CMU)
+  async searchBeneficiaire(payload: any): Promise<any> {
+    console.log('🔍 Appel API searchBeneficiaire:', payload);
+    const response = await this.makeRequest('POST', '/beneficiaire/search', payload);
+    console.log('✅ Réponse API searchBeneficiaire:', response);
+    return response;
+  }
+
+  // Récupérer les prescriptions d'un bénéficiaire
+  async getBeneficiairePrescriptions(payload: any): Promise<any> {
+    console.log('🔍 Appel API getBeneficiairePrescriptions:', payload);
+    const response = await this.makeRequest('POST', '/prescriptionActe/getByCriteria', payload);
+    console.log('✅ Réponse API getBeneficiairePrescriptions:', response);
+    return response;
+  }
+
+  // Récupérer les prescriptions actes pour pharmacie (alias pour compatibilité MedicaleeApp)
+  async getPrescriptionActes(payload: any): Promise<any> {
+    console.log('🔍 Appel API getPrescriptionActes:', payload);
+    const response = await this.makeRequest('POST', '/prescriptionActe/getByCriteria', payload);
+    console.log('✅ Réponse API getPrescriptionActes:', response);
+    return response;
+  }
+}
+
+export default ApiService;
