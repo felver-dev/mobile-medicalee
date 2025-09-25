@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +19,38 @@ const { width } = Dimensions.get('window');
 
 const PortalSelectionScreen: React.FC<PortalSelectionScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
+  const float1 = useRef(new Animated.Value(0)).current;
+  const float2 = useRef(new Animated.Value(0)).current;
+  const float3 = useRef(new Animated.Value(0)).current;
+  const float4 = useRef(new Animated.Value(0)).current;
+  const float5 = useRef(new Animated.Value(0)).current;
+  const float6 = useRef(new Animated.Value(0)).current;
+  const float7 = useRef(new Animated.Value(0)).current;
+  const float8 = useRef(new Animated.Value(0)).current;
+  const float9 = useRef(new Animated.Value(0)).current;
+  const float10 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const createFloat = (val: Animated.Value, delay: number, distance: number, duration: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, { toValue: 1, duration, delay, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0, duration, delay: 0, useNativeDriver: true }),
+        ])
+      ).start();
+
+    // Slightly faster and varied durations
+    createFloat(float1, 0, 10, 2400);
+    createFloat(float2, 300, 12, 2200);
+    createFloat(float3, 600, 8, 2300);
+    createFloat(float4, 900, 14, 2100);
+    createFloat(float5, 1200, 9, 2350);
+    createFloat(float6, 1500, 11, 2250);
+    createFloat(float7, 1800, 7, 2000);
+    createFloat(float8, 2100, 13, 2150);
+    createFloat(float9, 2400, 6, 2050);
+    createFloat(float10, 2700, 15, 1950);
+  }, [float1, float2, float3, float4, float5, float6, float7, float8, float9, float10]);
 
   const handlePortalSelection = (portalType: 'assure' | 'prestataire') => {
     console.log('🔵 PortalSelection - Sélection du portail:', portalType);
@@ -37,12 +70,138 @@ const PortalSelectionScreen: React.FC<PortalSelectionScreenProps> = ({ navigatio
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Bulles d'arrière-plan statiques */}
         <View style={styles.bubblesContainer}>
-          <View style={[styles.bubble, styles.bubble1, { backgroundColor: theme.colors.primary + '20' }]} />
-          <View style={[styles.bubble, styles.bubble2, { backgroundColor: theme.colors.primary + '25' }]} />
-          <View style={[styles.bubble, styles.bubble3, { backgroundColor: theme.colors.primary + '15' }]} />
-          <View style={[styles.bubble, styles.bubble4, { backgroundColor: theme.colors.primary + '22' }]} />
-          <View style={[styles.bubble, styles.bubble5, { backgroundColor: theme.colors.primary + '18' }]} />
-          <View style={[styles.bubble, styles.bubble6, { backgroundColor: theme.colors.primary + '20' }]} />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble1,
+              { backgroundColor: theme.colors.primary + '20' },
+              {
+                transform: [
+                  {
+                    translateY: float1.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }),
+                  },
+                  { scale: float1.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble2,
+              { backgroundColor: theme.colors.primary + '25' },
+              {
+                transform: [
+                  { translateY: float2.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) },
+                  { scale: float2.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble3,
+              { backgroundColor: theme.colors.primary + '15' },
+              {
+                transform: [
+                  { translateY: float3.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) },
+                  { scale: float3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble4,
+              { backgroundColor: theme.colors.primary + '22' },
+              {
+                transform: [
+                  { translateY: float4.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) },
+                  { scale: float4.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble5,
+              { backgroundColor: theme.colors.primary + '18' },
+              {
+                transform: [
+                  { translateY: float5.interpolate({ inputRange: [0, 1], outputRange: [0, -9] }) },
+                  { scale: float5.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble6,
+              { backgroundColor: theme.colors.primary + '20' },
+              {
+                transform: [
+                  { translateY: float6.interpolate({ inputRange: [0, 1], outputRange: [0, -11] }) },
+                  { scale: float6.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble7,
+              { backgroundColor: theme.colors.primary + '14' },
+              {
+                transform: [
+                  { translateY: float7.interpolate({ inputRange: [0, 1], outputRange: [0, -7] }) },
+                  { scale: float7.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble8,
+              { backgroundColor: theme.colors.primary + '1F' },
+              {
+                transform: [
+                  { translateY: float8.interpolate({ inputRange: [0, 1], outputRange: [0, -13] }) },
+                  { scale: float8.interpolate({ inputRange: [0, 1], outputRange: [1, 1.07] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble9,
+              { backgroundColor: theme.colors.primary + '12' },
+              {
+                transform: [
+                  { translateY: float9.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) },
+                  { scale: float9.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
+                ],
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.bubble,
+              styles.bubble10,
+              { backgroundColor: theme.colors.primary + '26' },
+              {
+                transform: [
+                  { translateY: float10.interpolate({ inputRange: [0, 1], outputRange: [0, -15] }) },
+                  { scale: float10.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
+                ],
+              },
+            ]}
+          />
         </View>
 
         {/* Header */}
@@ -244,6 +403,30 @@ const styles = StyleSheet.create({
     height: 90,
     top: '80%',
     right: '25%',
+  },
+  bubble7: {
+    width: 50,
+    height: 50,
+    top: '20%',
+    right: '40%',
+  },
+  bubble8: {
+    width: 130,
+    height: 130,
+    top: '35%',
+    left: '35%',
+  },
+  bubble9: {
+    width: 45,
+    height: 45,
+    top: '68%',
+    right: '12%',
+  },
+  bubble10: {
+    width: 110,
+    height: 110,
+    top: '10%',
+    left: '70%',
   },
 });
 

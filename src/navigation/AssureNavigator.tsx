@@ -16,6 +16,8 @@ import ProfileScreen from '../screens/portail_assure/ProfileScreen';
 import SettingsScreen from '../screens/portail_assure/SettingsScreen';
 import PharmacyGuardScreen from '../screens/portail_assure/PharmacyGuardScreen';
 import CareNetworkScreen from '../screens/portail_assure/CareNetworkScreen';
+import AssureClassicPrescriptionsScreen from '../screens/portail_assure/AssureClassicPrescriptionsScreen';
+import AssureEPPrescriptionsScreen from '../screens/portail_assure/AssureEPPrescriptionsScreen';
 import DrawerMenu from './DrawerMenu';
 
 const Stack = createNativeStackNavigator();
@@ -120,6 +122,8 @@ const AssureNavigator: React.FC = () => {
       <Stack.Screen name="MedicamentDetails" component={MedicamentDetailsScreen} />
       <Stack.Screen name="PharmacyGuard" component={PharmacyGuardScreen} />
       <Stack.Screen name="CareNetwork" component={CareNetworkScreen} />
+      <Stack.Screen name="ClassicPrescriptions" component={AssureClassicPrescriptionsScreen} />
+      <Stack.Screen name="EPPrescriptions" component={AssureEPPrescriptionsScreen} />
     </Stack.Navigator>
   );
 };

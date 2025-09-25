@@ -243,6 +243,80 @@ export class ApiService {
     console.log('✅ Réponse API getPrescriptionActes:', response);
     return response;
   }
+
+  // Récupérer les ordonnances classiques
+  async getClassicPrescriptions(params: {
+    garantieCodification?: string;
+    matriculeAssure?: string;
+    matriculeBeneficiaire?: string; // si présent, mappé en data.beneficiaire_id (si numérique)
+    dateDebut: string;
+    dateFin: string;
+    index: number;
+    size: number;
+    userId?: number;
+    filialeId?: number;
+  }): Promise<any> {
+    console.log('🔍 Appel API getClassicPrescriptions:', params);
+    
+    const data: any = {};
+    if (params.matriculeBeneficiaire) {
+      const asNumber = Number(params.matriculeBeneficiaire);
+      if (!Number.isNaN(asNumber)) {
+        data.beneficiaire_id = asNumber;
+      }
+    }
+
+    const payload: any = {
+      user_id: params.userId ?? 1,
+      filiale_id: params.filialeId ?? 1,
+      date_debut: `${params.dateDebut}T00:00:00.000Z`,
+      date_fin: `${params.dateFin}T23:59:59.999Z`,
+      data,
+      index: params.index,
+      size: params.size,
+      latitude: 5.32654,
+      longitude: -4.023503
+    };
+    if (params.matriculeAssure) payload.matricule_assure = params.matriculeAssure;
+    if (params.garantieCodification) payload.garantie_codification = params.garantieCodification;
+    
+    const response = await this.makeRequest('POST', '/ordonnance/getByCriteria', payload);
+    console.log('✅ Réponse API getClassicPrescriptions:', response);
+    return response;
+  }
+
+  // Récupérer les ordonnances avec entente préalable
+  async getOrdonnancesByEntentePrealable(params: {
+    garantieCodification: string;
+    matriculeAssure: string;
+    matriculeBeneficiaire?: string;
+    dateDebut: string;
+    dateFin: string;
+    index: number;
+    size: number;
+  }): Promise<any> {
+    console.log('🔍 Appel API getOrdonnancesByEntentePrealable:', params);
+    
+    const payload = {
+      user_id: 1, // TODO: Récupérer du contexte utilisateur
+      filiale_id: 1, // TODO: Récupérer du contexte utilisateur
+      garantie_codification: params.garantieCodification,
+      date_debut: `${params.dateDebut}T00:00:00.000Z`,
+      date_fin: `${params.dateFin}T23:59:59.999Z`,
+      matricule_assure: params.matriculeAssure,
+      data: params.matriculeBeneficiaire ? { 
+        beneficiaire_id: parseInt(params.matriculeBeneficiaire) 
+      } : {},
+      index: params.index,
+      size: params.size,
+      latitude: 5.32654,
+      longitude: -4.023503
+    };
+    
+    const response = await this.makeRequest('POST', '/ordonnance/getByEntentePrealable', payload);
+    console.log('✅ Réponse API getOrdonnancesByEntentePrealable:', response);
+    return response;
+  }
 }
 
 export default ApiService;

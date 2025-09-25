@@ -622,40 +622,45 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
           />
         );
       case 'prescriptions':
-        console.log('💊 Rendu prescriptions - Nombre:', prescriptions.length);
-        console.log('💊 Données prescriptions:', prescriptions);
+        console.log('💊 Rendu prescriptions (boutons uniquement)');
         return (
-          <FlatList
-            data={prescriptions}
-            renderItem={renderPrescription}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={theme.colors.primary}
-              />
-            }
-            ListEmptyComponent={() => {
-              console.log('💊 Affichage état vide pour prescriptions');
-              return (
-                <View style={styles.emptyState}>
-                  <Ionicons name="document-text-outline" size={48} color={theme.colors.textSecondary} />
-                  <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-                    Aucune ordonnance trouvée
-                  </Text>
-                  <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-                    Vous n'avez pas encore d'ordonnances enregistrées
-                  </Text>
-                  <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary, fontSize: 12, marginTop: 8 }]}>
-                    Matricule: {user?.beneficiaire_matricule || 'Non disponible'}
-                  </Text>
+          <View style={styles.prescriptionsContainer}>
+            <View style={styles.prescriptionButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.prescriptionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => navigation.navigate('ClassicPrescriptions')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.prescriptionButtonContent}>
+                  <View style={[styles.prescriptionButtonIcon, { backgroundColor: theme.colors.primaryLight }]}>
+                    <Ionicons name="document-outline" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.prescriptionButtonInfo}>
+                    <Text style={[styles.prescriptionButtonTitle, { color: theme.colors.textPrimary }]}>Ordonnances Classiques</Text>
+                    <Text style={[styles.prescriptionButtonSubtitle, { color: theme.colors.textSecondary }]}>Consultez vos ordonnances classiques</Text>
+                  </View>
+                  <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
                 </View>
-              );
-            }}
-          />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.prescriptionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => navigation.navigate('EPPrescriptions')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.prescriptionButtonContent}>
+                  <View style={[styles.prescriptionButtonIcon, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="shield-medical-outline" size={24} color="#D97706" />
+                  </View>
+                  <View style={styles.prescriptionButtonInfo}>
+                    <Text style={[styles.prescriptionButtonTitle, { color: theme.colors.textPrimary }]}>Ordonnances avec Entente Préalable</Text>
+                    <Text style={[styles.prescriptionButtonSubtitle, { color: theme.colors.textSecondary }]}>Consultez vos ordonnances nécessitant une entente préalable</Text>
+                  </View>
+                  <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         );
       case 'primes':
         console.log('💰 Rendu primes - Nombre:', primes.length);
@@ -1176,6 +1181,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     marginLeft: 6,
+  },
+  // Styles pour les boutons de navigation des ordonnances
+  prescriptionsContainer: {
+    flex: 1,
+  },
+  prescriptionButtonsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 10,
+    gap: 12,
+  },
+  prescriptionButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  prescriptionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  prescriptionButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionButtonInfo: {
+    flex: 1,
+  },
+  prescriptionButtonTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  prescriptionButtonSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
 
