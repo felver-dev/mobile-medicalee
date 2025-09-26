@@ -102,7 +102,7 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
         isEntentePrealable: true, // Spécifique aux prescriptions en attente
         dateDebut,
         dateFin,
-        index: 0,
+        index: page * 20,
         size: 20,
       });
 
@@ -111,17 +111,17 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
       if (response && response.items) {
         const prescriptionsData = response.items.map((item: any) => ({
           id: item.id,
-          beneficiaire_nom: item.beneficiaire_nom || 'N/A',
-          beneficiaire_prenom: item.beneficiaire_prenom || 'N/A',
-          beneficiaire_matricule: item.beneficiaire_matricule || 'N/A',
-          medicament_libelle: item.medicament_libelle || item.libelle || 'N/A',
+          beneficiaire_nom: item.beneficiaire_nom || 'Non renseigné',
+          beneficiaire_prenom: item.beneficiaire_prenom || 'Non renseigné',
+          beneficiaire_matricule: item.beneficiaire_matricule || 'Non renseigné',
+          medicament_libelle: item.medicament_libelle || item.libelle || 'Non renseigné',
           quantite: item.quantite || 0,
-          posologie: item.posologie || 'N/A',
+          posologie: item.posologie || 'Non renseigné',
           date_prescription: item.date_prescription || item.created_at,
           statut: item.statut || 'En attente',
-          garantie_libelle: item.garantie_libelle || 'N/A',
+          garantie_libelle: item.garantie_libelle || 'Non renseigné',
           montant: item.montant,
-          details: item.details || 'N/A',
+          details: item.details || 'Non renseigné',
           date_demande: item.date_demande || item.created_at,
           motif_demande: item.motif_demande || 'Demande d\'entente préalable',
           priorite: item.priorite || 'NORMAL'

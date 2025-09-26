@@ -70,6 +70,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const [showGarantiePicker, setShowGarantiePicker] = useState(false);
   const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
   const [showDateFinPicker, setShowDateFinPicker] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionItem | null>(null);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
   const garanties = [
     { code: '', libelle: 'Toutes les garanties' },
@@ -147,22 +149,30 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
 
       console.log('✅ Réponse API complète:', response);
       console.log('📊 Nombre d\'items:', response?.items?.length || 0);
+      console.log('🔍 Items avec is_entente_prealable:', response?.items?.filter((item: any) => item.is_entente_prealable)?.length || 0);
+      
+      // Debug des champs disponibles dans la première prescription
+      if (response?.items?.[0]) {
+        console.log('📋 Champs disponibles dans la première prescription:');
+        console.log('Keys:', Object.keys(response.items[0]));
+        console.log('Premier item complet:', response.items[0]);
+      }
 
       if (response && response.items) {
         const prescriptionsData = response.items.map((item: any) => ({
-          id: item.id,
-          beneficiaire_nom: item.beneficiaire_nom || 'Non renseigné',
-          beneficiaire_prenom: item.beneficiaire_prenom || 'Non renseigné',
-          beneficiaire_matricule: item.beneficiaire_matricule || 'Non renseigné',
-          medicament_libelle: item.medicament_libelle || item.libelle || 'Non renseigné',
-          quantite: item.quantite || 0,
-          posologie: item.posologie || 'Non renseigné',
-          date_prescription: item.date_prescription || item.created_at,
-          statut: item.statut || 'En attente',
-          garantie_libelle: item.garantie_libelle || 'Non renseigné',
-          montant: item.montant,
-          details: item.details || 'Non renseigné'
-        }));
+            id: item.id,
+            beneficiaire_nom: item.beneficiaire_nom || 'Non renseigné',
+            beneficiaire_prenom: item.beneficiaire_prenom || 'Non renseigné',
+            beneficiaire_matricule: item.beneficiaire_matricule || 'Non renseigné',
+            medicament_libelle: item.medicament_libelle || item.libelle || 'Non renseigné',
+            quantite: item.quantite || 0,
+            posologie: item.posologie || 'Non renseigné',
+            date_prescription: item.date_prescription || item.created_at,
+            statut: item.statut || 'En attente',
+            garantie_libelle: item.garantie_libelle || 'Non renseigné',
+            montant: item.montant,
+            details: item.details || 'Non renseigné'
+          }));
 
         if (append) {
           setPrescriptions(prev => [...prev, ...prescriptionsData]);
@@ -305,7 +315,10 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const renderPrescription = ({ item }: { item: PrescriptionItem }) => (
     <TouchableOpacity 
       style={[styles.prescriptionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      onPress={() => console.log('Voir détails prescription:', item.id)}
+      onPress={() => {
+        setSelectedPrescription(item);
+        setShowPrescriptionModal(true);
+      }}
     >
       {/* Header compact */}
       <View style={[styles.prescriptionHeader, { backgroundColor: theme.colors.primaryLight }]}>
@@ -698,6 +711,87 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
           onChange={handleDateFinChange}
         />
       )}
+
+      {/* Modal de détails de prescription */}
+      <Modal
+        visible={showPrescriptionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPrescriptionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.prescriptionModalContent, { backgroundColor: theme.colors.surface }]}>
+            {/* Header moderne */}
+            <View style={[styles.modalHeader, { backgroundColor: theme.colors.primary }]}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={styles.modalIconContainer}>
+                    <Ionicons name="medical" size={24} color="white" />
+                  </View>
+                  <View>
+                    <Text style={styles.modalTitle}>Détails de la prescription</Text>
+                    {selectedPrescription && (
+                      <Text style={styles.modalSubtitle}>
+                        #{selectedPrescription.id} • {selectedPrescription.beneficiaire_prenom} {selectedPrescription.beneficiaire_nom}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowPrescriptionModal(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.prescriptionModalBody}>
+              {selectedPrescription && (
+                <View style={styles.prescriptionDetails}>
+                  {/* Détails du médicament directement */}
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Médicament</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.medicament_libelle}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Quantité</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.quantite}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Posologie</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.posologie}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Montant</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.primary, fontWeight: '600' }]}>
+                      {formatAmount(selectedPrescription.montant)}
+                    </Text>
+                  </View>
+                  
+                  {selectedPrescription.details && selectedPrescription.details !== 'Non renseigné' && (
+                    <View style={styles.infoItem}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Détails</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrescription.details}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -720,7 +814,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   backButton: {
     width: 40,
@@ -734,6 +828,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginHorizontal: 16,
+    marginTop: 20,
   },
   headerTitle: {
     fontSize: 18,
@@ -1043,6 +1138,83 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Styles pour le modal de détails de prescription
+  prescriptionModalContent: {
+    maxHeight: '80%',
+    width: '90%',
+    margin: 20,
+    marginTop: 100,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  modalHeader: {
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  prescriptionModalBody: {
+    padding: 16,
+  },
+  prescriptionDetails: {
+    // Supprimé flex: 1 pour éviter l'étirement
+  },
+  infoItem: {
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 20,
   },
 });
 
