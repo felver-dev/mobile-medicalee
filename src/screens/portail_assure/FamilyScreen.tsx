@@ -544,7 +544,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             <View style={styles.contactInfo}>
               <Ionicons name="cash-outline" size={14} color={theme.colors.textSecondary} />
               <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                Montant: {formatAmountDisplay(item.montant_prime)}
+                Montant: {formatAmountDisplay(item.prime_ttc)}
               </Text>
             </View>
           </View>
