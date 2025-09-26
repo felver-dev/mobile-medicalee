@@ -409,10 +409,10 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
         {/* Header */}
         <View style={[styles.consultationHeader, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.consultationHeaderLeft}>
-            <View style={[styles.consultationIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <View style={[styles.consultationIconContainerLarge, { backgroundColor: theme.colors.primaryLight }]}>
               <Ionicons name="medical-outline" size={20} color={theme.colors.primary} />
             </View>
-            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]}>
+            <Text style={[styles.consultationTitleLarge, { color: theme.colors.textPrimary }]}>
               Consultation
             </Text>
           </View>
@@ -1180,7 +1180,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  consultationIconContainer: {
+  consultationIconContainerLarge: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -1192,7 +1192,7 @@ const styles = StyleSheet.create({
   consultationInfo: {
     flex: 1,
   },
-  consultationTitle: {
+  consultationTitleLarge: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 2,
@@ -1458,7 +1458,7 @@ const styles = StyleSheet.create({
   },
   
   // Styles pour les cartes de membres améliorées
-  memberCard: {
+  memberCardImproved: {
     marginHorizontal: 2,
     marginVertical: 8,
     borderRadius: 12,
@@ -1476,7 +1476,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  memberAvatar: {
+  memberAvatarImproved: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1484,14 +1484,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  memberInitials: {
+  memberInitialsImproved: {
     fontSize: 16,
     fontWeight: 'bold',
   },
   memberHeaderInfo: {
     flex: 1,
   },
-  memberName: {
+  memberNameImproved: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,

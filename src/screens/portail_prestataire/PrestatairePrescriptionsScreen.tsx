@@ -34,15 +34,6 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
       route: 'PrescriptionByGarantie'
     },
     {
-      id: 'famille',
-      title: 'Par Famille',
-      subtitle: 'Consulter par famille',
-      icon: 'people-outline',
-      color: '#2196F3',
-      bgColor: '#E3F2FD',
-      route: 'PrescriptionByFamille'
-    },
-    {
       id: 'attente',
       title: 'En Attente',
       subtitle: 'Consulter les ententes préalables',
@@ -66,8 +57,7 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
         { 
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          marginLeft: index % 2 === 0 ? 0 : 8,
-          marginRight: index % 2 === 1 ? 0 : 8,
+          marginHorizontal: 20,
         }
       ]}
       onPress={() => handleOptionPress(option.route)}
@@ -80,10 +70,10 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
 
       {/* Content */}
       <View style={styles.optionContent}>
-        <Text style={[styles.optionTitle, { color: theme.colors.textPrimary }]}>
+        <Text style={[styles.optionTitle, { color: '#000000' }]}>
           {option.title}
         </Text>
-        <Text style={[styles.optionSubtitle, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.optionSubtitle, { color: '#666666' }]}>
           {option.subtitle}
         </Text>
       </View>
@@ -190,20 +180,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   optionCard: {
-    width: (width - 56) / 2,
+    width: width - 40,
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
-    minHeight: 140,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    minHeight: 180,
   },
   iconContainer: {
     width: 48,
@@ -215,17 +197,20 @@ const styles = StyleSheet.create({
   },
   optionContent: {
     flex: 1,
-    marginBottom: 12,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
   },
   optionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 4,
     lineHeight: 20,
   },
   optionSubtitle: {
     fontSize: 13,
     lineHeight: 18,
+    flexWrap: 'wrap',
   },
   arrowContainer: {
     alignItems: 'flex-end',

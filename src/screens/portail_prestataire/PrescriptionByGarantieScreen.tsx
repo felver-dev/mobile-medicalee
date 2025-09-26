@@ -554,13 +554,13 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+            <View style={[styles.filterModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.filterModalTitle, { color: theme.colors.textPrimary }]}>
                 Filtres de recherche
               </Text>
               <TouchableOpacity
                 onPress={() => setShowFilters(false)}
-                style={styles.modalCloseButton}
+                style={styles.filterModalCloseButton}
               >
                 <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -653,13 +653,13 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+            <View style={[styles.filterModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.filterModalTitle, { color: theme.colors.textPrimary }]}>
                 Sélectionner une garantie
               </Text>
               <TouchableOpacity
                 onPress={() => setShowGarantiePicker(false)}
-                style={styles.modalCloseButton}
+                style={styles.filterModalCloseButton}
               >
                 <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
@@ -739,7 +739,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowPrescriptionModal(false)}
-                  style={styles.modalCloseButton}
+                  style={styles.filterModalCloseButton}
                 >
                   <Ionicons name="close" size={24} color="white" />
                 </TouchableOpacity>
@@ -945,18 +945,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
-  modalHeader: {
+  filterModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
   },
-  modalTitle: {
+  filterModalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  modalCloseButton: {
+  filterModalCloseButton: {
     padding: 4,
   },
   modalBody: {
