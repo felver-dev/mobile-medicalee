@@ -228,50 +228,101 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
   };
 
   const renderPrescription = ({ item }: { item: ClassicPrescription }) => (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.prescriptionIcon}>
-            <Ionicons name="receipt-outline" size={24} color={theme.colors.primary} />
+    <View style={[styles.prescriptionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      {/* Header */}
+      <View style={[styles.prescriptionHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.prescriptionHeaderLeft}>
+          <View style={[styles.prescriptionIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="receipt-outline" size={20} color={theme.colors.primary} />
           </View>
-          <View style={styles.prescriptionInfo}>
-            <Text style={[styles.prescriptionTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.code || (item as any).codification || (item as any).ordonnance_codification || `Ordonnance #${item.id}`}
-            </Text>
-            <Text style={[styles.prescriptionPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {(item as any).beneficiaire_prenom} {(item as any).beneficiaire_nom}
-            </Text>
-            <Text style={[styles.prescriptionProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {(item as any).prestataire_libelle}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.prescriptionTitle, { color: theme.colors.textPrimary }]}>
+            Ordonnance Classique
+          </Text>
+        </View>
+        <View style={[styles.prescriptionStatusBadge, { backgroundColor: theme.colors.successLight }]}>
+          <Text style={[styles.prescriptionStatusText, { color: theme.colors.success }]}>
+            Validée
+          </Text>
+        </View>
+      </View>
+
+      {/* Patient Info */}
+      <View style={styles.prescriptionContent}>
+        <View style={styles.prescriptionPatientInfo}>
+          <Text style={[styles.prescriptionPatientName, { color: theme.colors.textPrimary }]}>
+            {(item as any).beneficiaire_prenom} {(item as any).beneficiaire_nom} ({(item as any).beneficiaire_matricule})
+          </Text>
+        </View>
+
+        {/* Details Grid */}
+        <View style={styles.prescriptionInfoGrid}>
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="document-text-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Code</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.code || (item as any).codification || (item as any).ordonnance_codification || `ORD-${item.id}`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {(item as any).prestataire_libelle}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                 {formatDate((item as any).date_prescription || (item as any).created_at)}
               </Text>
             </View>
-          <View style={styles.contactInfo}>
-            <Ionicons name="id-card-outline" size={14} color={theme.colors.textSecondary} />
-            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {(item as any).beneficiaire_matricule}
-            </Text>
           </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="medical-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {(item as any).nombre_medicaments ?? ''} {(item as any).nombre_medicaments ? 'médicament(s)' : ''}
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="medical-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Médicaments</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {(item as any).nombre_medicaments ?? 0} médicament(s)
               </Text>
             </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+
+        {/* Footer */}
+        <View style={[styles.prescriptionFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.prescriptionFooterLeft}>
+            <View style={styles.prescriptionFooterItem}>
+              <Text style={[styles.prescriptionFooterLabel, { color: theme.colors.textSecondary }]}>
+                Garantie
+              </Text>
+              <Text style={[styles.prescriptionFooterValue, { color: theme.colors.primary }]}>
+                {(item as any).garantie_libelle || 'PHARMACIE'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.prescriptionFooterRight}>
+            <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+          </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const headerTopPadding = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0) + 20;

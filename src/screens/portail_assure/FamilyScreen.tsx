@@ -405,51 +405,106 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
   const renderConsultation = ({ item }: { item: FamilyConsultation }) => {
     console.log('🎨 Rendu consultation:', item);
     return (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      activeOpacity={0.7}
-    >
-      {/* Main Content */}
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.consultationIconContainer}>
-            <Ionicons 
-              name="medical-outline" 
-              size={24} 
-              color={theme.colors.primary} 
-            />
+      <View style={[styles.consultationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {/* Header */}
+        <View style={[styles.consultationHeader, { borderBottomColor: theme.colors.border }]}>
+          <View style={styles.consultationHeaderLeft}>
+            <View style={[styles.consultationIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="medical-outline" size={20} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]}>
+              Consultation
+            </Text>
           </View>
-          <View style={styles.consultationInfo}>
-            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.libelle || item.acte_libelle}
+          <View style={[styles.consultationStatusBadge, { backgroundColor: theme.colors.successLight }]}>
+            <Text style={[styles.consultationStatusText, { color: theme.colors.success }]}>
+              Remboursée
             </Text>
-            <Text style={[styles.consultationPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.beneficiaire_prenom} {item.beneficiaire_nom}
-            </Text>
-            <Text style={[styles.consultationProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.prestataire_libelle}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {formatDate(item.created_at)}
-              </Text>
-            </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="location-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.prestataire_libelle}
-              </Text>
-            </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Text style={[styles.consultationAmount, { color: theme.colors.primary }]} numberOfLines={1}>
-            {formatAmountDisplay(item.montant)}
-          </Text>
+
+        {/* Patient Info */}
+        <View style={styles.consultationContent}>
+          <View style={styles.consultationPatientInfo}>
+            <Text style={[styles.consultationPatientName, { color: theme.colors.textPrimary }]}>
+              {item.beneficiaire_prenom} {item.beneficiaire_nom} ({item.beneficiaire_matricule})
+            </Text>
+          </View>
+
+          {/* Details Grid */}
+          <View style={styles.consultationInfoGrid}>
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="medical-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Acte</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.acte_libelle || item.libelle}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.prestataire_libelle}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {formatDate(item.created_at)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="card-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Montant</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {formatAmountDisplay(item.montant)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Financial Details */}
+          <View style={[styles.consultationFooter, { borderTopColor: theme.colors.border }]}>
+            <View style={styles.consultationFooterLeft}>
+              <View style={styles.consultationFinancialItem}>
+                <Text style={[styles.consultationFinancialLabel, { color: theme.colors.textSecondary }]}>
+                  Part assurance
+                </Text>
+                <Text style={[styles.consultationFinancialValue, { color: theme.colors.success }]}>
+                  {formatAmountDisplay(item.part_assurance)} ({item.taux_couverture}%)
+                </Text>
+              </View>
+              <View style={styles.consultationFinancialItem}>
+                <Text style={[styles.consultationFinancialLabel, { color: theme.colors.textSecondary }]}>
+                  Part patient
+                </Text>
+                <Text style={[styles.consultationFinancialValue, { color: theme.colors.warning }]}>
+                  {formatAmountDisplay(item.part_patient)}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
-    </TouchableOpacity>
     );
   };
 
@@ -1153,6 +1208,107 @@ const styles = StyleSheet.create({
   consultationAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  
+  // Styles pour les cartes de consultations améliorées
+  consultationCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  consultationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  consultationHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  consultationIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  consultationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  consultationStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  consultationStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  consultationContent: {
+    padding: 16,
+  },
+  consultationPatientInfo: {
+    marginBottom: 16,
+  },
+  consultationPatientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  consultationInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  consultationInfoItem: {
+    width: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  consultationInfoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  consultationInfoText: {
+    flex: 1,
+  },
+  consultationInfoLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  consultationInfoValue: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  consultationFooter: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  consultationFooterLeft: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  consultationFinancialItem: {
+    flex: 1,
+  },
+  consultationFinancialLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  consultationFinancialValue: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   loadingMoreContainer: {
     flexDirection: 'row',
