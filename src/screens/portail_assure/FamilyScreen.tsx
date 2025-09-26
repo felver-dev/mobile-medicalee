@@ -517,40 +517,94 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
 
   const renderPrime = ({ item }: { item: any }) => (
     <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[styles.primeCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.consultationIconContainer}>
-            <Ionicons name="card-outline" size={24} color={theme.colors.primary} />
+      {/* Header avec icône et statut */}
+      <View style={[styles.primeHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.primeHeaderLeft}>
+          <View style={[styles.primeIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="card-outline" size={20} color={theme.colors.primary} />
           </View>
-          <View style={styles.consultationInfo}>
-            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.type_prime || 'Prime'}
-            </Text>
-            <Text style={[styles.consultationPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          <View style={styles.primeHeaderInfo}>
+            <Text style={[styles.primeTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
               {item.beneficiaire_nom || 'N/A'} {item.beneficiaire_prenom || ''}
             </Text>
-            <Text style={[styles.consultationProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              Statut: {item.statut_libelle || 'N/A'}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {formatDate(item.date_prime)}
-              </Text>
-            </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="cash-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                Montant: {formatAmountDisplay(item.prime_ttc)}
+            <View style={[styles.statusBadge, { backgroundColor: theme.colors.primaryLight }]}>
+              <Text style={[styles.statusText, { color: theme.colors.primary }]} numberOfLines={1}>
+                {item.statut_libelle || 'N/A'}
               </Text>
             </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+        <View style={styles.primeHeaderRight}>
+          <Text style={[styles.primeAmount, { color: theme.colors.primary }]} numberOfLines={1}>
+            {formatAmountDisplay(item.prime_ttc)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Informations principales */}
+      <View style={styles.primeContent}>
+        <View style={styles.primeInfoGrid}>
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.matricule || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.college_libelle || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="shield-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Police</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.police_libelle || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Date d'entrée</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {formatDate(item.date_entree)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Plafond en bas */}
+        <View style={[styles.primeFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.primeFooterLeft}>
+            <Ionicons name="trending-up-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={[styles.primeFooterLabel, { color: theme.colors.textSecondary }]}>Plafond</Text>
+          </View>
+          <Text style={[styles.primeFooterValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+            {formatAmountDisplay(item.plafond)}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -1221,6 +1275,115 @@ const styles = StyleSheet.create({
   prescriptionButtonSubtitle: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  
+  // Styles pour les cartes de primes améliorées
+  primeCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  primeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  primeHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  primeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  primeHeaderInfo: {
+    flex: 1,
+  },
+  primeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  primeHeaderRight: {
+    alignItems: 'flex-end',
+  },
+  primeAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  primeContent: {
+    padding: 16,
+  },
+  primeInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  primeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 12,
+  },
+  primeInfoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  primeInfoText: {
+    flex: 1,
+  },
+  primeInfoLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  primeInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  primeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  primeFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  primeFooterLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  primeFooterValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
