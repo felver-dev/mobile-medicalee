@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,10 +27,34 @@ const PrestataireLoginScreen: React.FC<PrestataireLoginScreenProps> = ({ navigat
   const { theme } = usePrestataireTheme();
   const { isLoading, error, login: loginFunction } = useAuth();
   const { showAlert } = useModal();
+  const f1 = useRef(new Animated.Value(0)).current;
+  const f2 = useRef(new Animated.Value(0)).current;
+  const f3 = useRef(new Animated.Value(0)).current;
+  const f4 = useRef(new Animated.Value(0)).current;
+  const f5 = useRef(new Animated.Value(0)).current;
+  const f6 = useRef(new Animated.Value(0)).current;
+  const f7 = useRef(new Animated.Value(0)).current;
   
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const float = (v: Animated.Value, delay: number, dur: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(v, { toValue: 1, duration: dur, delay, useNativeDriver: true }),
+          Animated.timing(v, { toValue: 0, duration: dur, useNativeDriver: true }),
+        ])
+      ).start();
+    float(f1, 0, 2100);
+    float(f2, 200, 2000);
+    float(f3, 400, 2050);
+    float(f4, 600, 1950);
+    float(f5, 800, 2150);
+    float(f6, 1000, 1900);
+    float(f7, 1200, 1850);
+  }, [f1, f2, f3, f4, f5, f6, f7]);
 
   const handleLogin = async () => {
     if (!login || !password) {
@@ -86,13 +111,15 @@ const PrestataireLoginScreen: React.FC<PrestataireLoginScreenProps> = ({ navigat
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Bulles d'arrière-plan statiques */}
+        {/* Bulles d'arrière-plan animées */}
         <View style={styles.bubblesContainer}>
-          <View style={[styles.bubble, styles.bubble1, { backgroundColor: theme.colors.primary + '20' }]} />
-          <View style={[styles.bubble, styles.bubble2, { backgroundColor: theme.colors.primary + '25' }]} />
-          <View style={[styles.bubble, styles.bubble3, { backgroundColor: theme.colors.primary + '15' }]} />
-          <View style={[styles.bubble, styles.bubble4, { backgroundColor: theme.colors.primary + '22' }]} />
-          <View style={[styles.bubble, styles.bubble5, { backgroundColor: theme.colors.primary + '18' }]} />
+          <Animated.View style={[styles.bubble, styles.bubble1, { backgroundColor: theme.colors.primary + '20' }, { transform: [ { translateY: f1.interpolate({ inputRange: [0,1], outputRange: [0, -10] }) }, { scale: f1.interpolate({ inputRange: [0,1], outputRange: [1, 1.06] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble2, { backgroundColor: theme.colors.primary + '25' }, { transform: [ { translateY: f2.interpolate({ inputRange: [0,1], outputRange: [0, -12] }) }, { scale: f2.interpolate({ inputRange: [0,1], outputRange: [1, 1.06] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble3, { backgroundColor: theme.colors.primary + '15' }, { transform: [ { translateY: f3.interpolate({ inputRange: [0,1], outputRange: [0, -8] }) }, { scale: f3.interpolate({ inputRange: [0,1], outputRange: [1, 1.05] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble4, { backgroundColor: theme.colors.primary + '22' }, { transform: [ { translateY: f4.interpolate({ inputRange: [0,1], outputRange: [0, -14] }) }, { scale: f4.interpolate({ inputRange: [0,1], outputRange: [1, 1.07] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble5, { backgroundColor: theme.colors.primary + '18' }, { transform: [ { translateY: f5.interpolate({ inputRange: [0,1], outputRange: [0, -9] }) }, { scale: f5.interpolate({ inputRange: [0,1], outputRange: [1, 1.05] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble6, { backgroundColor: theme.colors.primary + '1A' }, { transform: [ { translateY: f6.interpolate({ inputRange: [0,1], outputRange: [0, -11] }) }, { scale: f6.interpolate({ inputRange: [0,1], outputRange: [1, 1.05] }) } ] } ]} />
+          <Animated.View style={[styles.bubble, styles.bubble7, { backgroundColor: theme.colors.primary + '12' }, { transform: [ { translateY: f7.interpolate({ inputRange: [0,1], outputRange: [0, -7] }) }, { scale: f7.interpolate({ inputRange: [0,1], outputRange: [1, 1.04] }) } ] } ]} />
         </View>
 
         <ScrollView 
@@ -348,6 +375,18 @@ const styles = StyleSheet.create({
     height: 70,
     top: '80%',
     left: '15%',
+  },
+  bubble6: {
+    width: 85,
+    height: 85,
+    top: '35%',
+    left: '40%',
+  },
+  bubble7: {
+    width: 50,
+    height: 50,
+    top: '72%',
+    right: '12%',
   },
 });
 

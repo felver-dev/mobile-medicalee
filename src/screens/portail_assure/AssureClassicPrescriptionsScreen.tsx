@@ -1,0 +1,954 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  FlatList,
+  ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  TextInput,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import Loader from '../../components/Loader';
+import ApiService from '../../services/ApiService';
+
+interface AssureClassicPrescriptionsScreenProps {
+  navigation: any;
+}
+
+interface ClassicPrescription {
+  id: number;
+  matricule_assure: string;
+  matricule: string;
+  beneficiaire_nom: string;
+  beneficiaire_prenom: string;
+  prestataire_libelle: string;
+  prestataire_id: number;
+  date_prescription: string;
+  nombre_medicaments: number;
+  code?: string;
+  libelle?: string;
+}
+
+const PAGE_SIZE = 10;
+
+// Mapping des garanties (code → libellé)
+const GARANTIES = [
+  { code: 'PHARMA', libelle: 'Pharmacie' },
+  { code: 'EXA', libelle: 'Autres examens' },
+  { code: 'AUX', libelle: 'Auxiliaires médicaux' },
+  { code: 'AMP', libelle: 'Assistance médicale à la procréation' },
+  { code: 'BILN', libelle: 'Bilan de santé' },
+  { code: 'BIO', libelle: 'Biologie' },
+  { code: 'CONS', libelle: 'Consultation' },
+  { code: 'DEN', libelle: 'Dentisterie' },
+  { code: 'HOS', libelle: 'Hospitalisation' },
+  { code: 'IMA', libelle: 'Imagerie & examens spécialisés' },
+  { code: 'MAT', libelle: 'Maternité' },
+  { code: 'OPT', libelle: 'Optique' },
+  { code: 'TRA', libelle: 'Transport médicalisé' },
+];
+
+const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const { user } = useAuth();
+  
+  const [prescriptions, setPrescriptions] = useState<ClassicPrescription[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultsCount, setResultsCount] = useState<number | null>(null);
+  
+  // Filtres
+  const [dateDebut, setDateDebut] = useState('');
+  const [dateFin, setDateFin] = useState('');
+  const [matriculeBeneficiaire, setMatriculeBeneficiaire] = useState('');
+  const [selectedGarantie, setSelectedGarantie] = useState<string | undefined>('PHARMA');
+  const [showGarantiePicker, setShowGarantiePicker] = useState(false);
+  const apiRef = useRef<ApiService | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<'start' | 'end'>('start');
+  const [tempDate, setTempDate] = useState<Date>(new Date());
+
+  if (!apiRef.current) {
+    apiRef.current = new ApiService();
+  }
+  
+  const hasLoadedInitial = useRef(false);
+
+  // Initialiser les dates par défaut (90 derniers jours)
+  useEffect(() => {
+    const today = new Date();
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setDate(today.getDate() - 90);
+    
+    setDateFin(today.toISOString().split('T')[0]);
+    setDateDebut(threeMonthsAgo.toISOString().split('T')[0]);
+    setSelectedGarantie("PHARMA"); // Default to "PHARMA" comme dans l'écran EP
+  }, []);
+
+  const openDatePicker = (field: 'start' | 'end') => {
+    setActiveDateField(field);
+    const base = field === 'start' ? dateDebut : dateFin;
+    const parsed = base ? new Date(base) : new Date();
+    setTempDate(parsed);
+    setShowDatePicker(true);
+  };
+
+  const onDateChange = (_: any, selected?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (!selected) return;
+    const iso = selected.toISOString().split('T')[0];
+    if (activeDateField === 'start') setDateDebut(iso);
+    else setDateFin(iso);
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData(true, 0);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
+  const loadData = useCallback(async (isRefresh: boolean = false, page: number = 0) => {
+    if (isLoading && !isRefresh) return;
+    if (!isRefresh && page > 0 && !hasMoreData) return;
+    
+    setIsLoading(true);
+    
+    if (isRefresh) {
+      setLoading(true);
+      setCurrentPage(0);
+      setHasMoreData(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
+    try {
+      // Déterminer les dates effectives par défaut:
+      // si vides → aujourd'hui (début) et demain (fin)
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      // Si on filtre par matricule bénéficiaire sans dates, élargir période (début d'année → aujourd'hui)
+      let effectiveStart = dateDebut;
+      let effectiveEnd = dateFin;
+      if (!effectiveStart || !effectiveEnd) {
+        if (matriculeBeneficiaire && !dateDebut && !dateFin) {
+          const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          effectiveStart = yearStart;
+          effectiveEnd = todayStr;
+        } else {
+          effectiveStart = effectiveStart || todayStr;
+          effectiveEnd = effectiveEnd || tomorrowStr;
+        }
+      }
+
+      console.log('🔍 [Classic] Chargement - page:', page, 'dateDebut:', effectiveStart, 'dateFin:', effectiveEnd, 'matriculeBeneficiaire:', matriculeBeneficiaire);
+
+      // Revenir au comportement initial: endpoint ordonnances (un item = une ordonnance)
+      const resp = await apiRef.current!.getClassicPrescriptions({
+        garantieCodification: selectedGarantie || undefined,
+        matriculeAssure: user?.beneficiaire_matricule ? String(user.beneficiaire_matricule) : undefined,
+        matriculeBeneficiaire: matriculeBeneficiaire || undefined,
+        dateDebut: effectiveStart,
+        dateFin: effectiveEnd,
+        index: page,
+        size: PAGE_SIZE,
+        userId: user?.id ? Number(user.id) : undefined,
+        filialeId: typeof user?.filiale_id === 'number' ? user.filiale_id : undefined,
+      });
+      const listRaw = Array.isArray(resp?.items) ? resp.items : (Array.isArray(resp?.data?.items) ? resp.data.items : []);
+      const totalCount: number | undefined = typeof resp?.count === 'number' ? resp.count : (typeof resp?.data?.count === 'number' ? resp.data.count : undefined);
+      const list: ClassicPrescription[] = listRaw as ClassicPrescription[];
+      console.log('✅ [Classic] Réponse - items:', list.length, 'count:', totalCount, 'ids:', list.map((it:any)=>it?.id));
+
+      if (isRefresh || page === 0) {
+        setPrescriptions(list);
+      } else {
+        setPrescriptions(prev => [...prev, ...list]);
+      }
+      if (typeof totalCount === 'number') setResultsCount(totalCount);
+      else setResultsCount(list.length);
+      
+      setHasMoreData(list.length === PAGE_SIZE);
+      setCurrentPage(page);
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des ordonnances classiques:', error);
+      if (isRefresh || page === 0) {
+        setPrescriptions([]);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      setInitialLoading(false);
+      setIsLoading(false);
+    }
+  }, [user, dateDebut, dateFin, matriculeBeneficiaire, selectedGarantie]);
+
+  const loadMoreData = useCallback(() => {
+    if (!loadingMore && hasMoreData && !isLoading) {
+      loadData(false, currentPage + 1);
+    }
+  }, [loadingMore, hasMoreData, currentPage, isLoading]);
+
+  useEffect(() => {
+    if (!hasLoadedInitial.current) {
+      hasLoadedInitial.current = true;
+      loadData(true, 0);
+    }
+  }, [user]);
+
+  const handleSearch = () => {
+    setCurrentPage(0);
+    setHasMoreData(true);
+    loadData(true, 0);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Date non disponible';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date invalide';
+    return date.toLocaleDateString('fr-FR');
+  };
+
+  const renderPrescription = ({ item }: { item: ClassicPrescription }) => (
+    <View style={[styles.prescriptionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      {/* Header */}
+      <View style={[styles.prescriptionHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.prescriptionHeaderLeft}>
+          <View style={[styles.prescriptionIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="receipt-outline" size={20} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.prescriptionTitle, { color: theme.colors.textPrimary }]}>
+            Ordonnance Classique
+          </Text>
+        </View>
+        <View style={[styles.prescriptionStatusBadge, { backgroundColor: '#D1FAE5' }]}>
+          <Text style={[styles.prescriptionStatusText, { color: '#059669' }]}>
+            Validée
+          </Text>
+        </View>
+      </View>
+
+      {/* Patient Info */}
+      <View style={styles.prescriptionContent}>
+        <View style={styles.prescriptionPatientInfo}>
+          <Text style={[styles.prescriptionPatientName, { color: theme.colors.textPrimary }]}>
+            {(item as any).beneficiaire_prenom} {(item as any).beneficiaire_nom} ({(item as any).beneficiaire_matricule})
+          </Text>
+        </View>
+
+        {/* Details Grid */}
+        <View style={styles.prescriptionInfoGrid}>
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="document-text-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Code</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.code || (item as any).codification || (item as any).ordonnance_codification || `ORD-${item.id}`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {(item as any).prestataire_libelle}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {formatDate((item as any).date_prescription || (item as any).created_at)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.prescriptionInfoItem}>
+            <View style={styles.prescriptionInfoIcon}>
+              <Ionicons name="medical-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.prescriptionInfoText}>
+              <Text style={[styles.prescriptionInfoLabel, { color: theme.colors.textSecondary }]}>Médicaments</Text>
+              <Text style={[styles.prescriptionInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {(item as any).nombre_medicaments ?? 0} médicament(s)
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={[styles.prescriptionFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.prescriptionFooterLeft}>
+            <View style={styles.prescriptionFooterItem}>
+              <Text style={[styles.prescriptionFooterLabel, { color: theme.colors.textSecondary }]}>
+                Garantie
+              </Text>
+              <Text style={[styles.prescriptionFooterValue, { color: theme.colors.primary }]}>
+                {(item as any).garantie_libelle || 'PHARMACIE'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.prescriptionFooterRight}>
+            <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const headerTopPadding = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0) + 20;
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+      
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.colors.primary, paddingTop: headerTopPadding }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity 
+            style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back-outline" size={20} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Ordonnances Classiques</Text>
+          <View style={styles.placeholder} />
+        </View>
+      </View>
+
+      {/* Filtres améliorés */}
+      <View style={[styles.filtersContainer, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.filtersHeader}>
+          <Ionicons name="filter-outline" size={20} color={theme.colors.primary} />
+          <Text style={[styles.filtersTitle, { color: theme.colors.textPrimary }]}>Filtres de recherche</Text>
+        </View>
+        
+        <View style={styles.filtersGrid}>
+          {/* Garantie */}
+          <View style={styles.filterCard}>
+            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Garantie</Text>
+            <TouchableOpacity
+              style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+              onPress={() => setShowGarantiePicker(!showGarantiePicker)}
+            >
+              <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {selectedGarantie ? (GARANTIES.find(g => g.code === selectedGarantie)?.libelle || selectedGarantie) : 'Toutes garanties'}
+              </Text>
+              <Ionicons name="chevron-down-outline" size={18} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Date début */}
+          <View style={styles.filterCard}>
+            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date début</Text>
+            <TouchableOpacity 
+              style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+              onPress={() => openDatePicker('start')} 
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]}>
+                {dateDebut || 'Sélectionner'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Date fin */}
+          <View style={styles.filterCard}>
+            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date fin</Text>
+            <TouchableOpacity 
+              style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+              onPress={() => openDatePicker('end')} 
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+              <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]}>
+                {dateFin || 'Sélectionner'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Matricule bénéficiaire */}
+          <View style={styles.filterCard}>
+            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Matricule bénéficiaire</Text>
+            <View style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
+              <Ionicons name="person-outline" size={18} color={theme.colors.textSecondary} />
+              <TextInput
+                style={[styles.textInput, { color: theme.colors.textPrimary }]}
+                value={matriculeBeneficiaire}
+                onChangeText={setMatriculeBeneficiaire}
+                placeholder="Optionnel"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Bouton de recherche */}
+        <TouchableOpacity 
+          style={[styles.searchButton, { backgroundColor: theme.colors.primary }]} 
+          onPress={handleSearch}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="search-outline" size={20} color="white" />
+          <Text style={styles.searchButtonText}>Rechercher</Text>
+        </TouchableOpacity>
+
+        {/* Picker de garantie amélioré */}
+        {showGarantiePicker && (
+          <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={[styles.pickerHeader, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.pickerHeaderLeft}>
+                <Ionicons name="shield-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.pickerTitle, { color: theme.colors.textPrimary }]}>Sélectionner une garantie</Text>
+              </View>
+              <TouchableOpacity 
+                style={[styles.closeButton, { backgroundColor: theme.colors.background }]}
+                onPress={() => setShowGarantiePicker(false)}
+              >
+                <Ionicons name="close-outline" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity 
+                style={[
+                  styles.pickerItem, 
+                  { borderBottomColor: theme.colors.border },
+                  !selectedGarantie && { backgroundColor: theme.colors.primaryLight }
+                ]} 
+                onPress={() => { setSelectedGarantie(undefined); setShowGarantiePicker(false); }}
+              >
+                <View style={styles.pickerItemLeft}>
+                  <View style={[styles.garantieIcon, { backgroundColor: theme.colors.primary }]}>
+                    <Ionicons name="apps-outline" size={16} color="white" />
+                  </View>
+                  <Text style={[
+                    styles.pickerItemText, 
+                    { color: !selectedGarantie ? theme.colors.primary : theme.colors.textPrimary }
+                  ]}>
+                    Toutes garanties
+                  </Text>
+                </View>
+                {!selectedGarantie && (
+                  <View style={[styles.checkmarkContainer, { backgroundColor: theme.colors.primary }]}>
+                    <Ionicons name="checkmark" size={12} color="white" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              {GARANTIES.map((g, index) => (
+                <TouchableOpacity 
+                  key={g.code} 
+                  style={[
+                    styles.pickerItem, 
+                    { borderBottomColor: theme.colors.border },
+                    selectedGarantie === g.code && { backgroundColor: theme.colors.primaryLight }
+                  ]} 
+                  onPress={() => { setSelectedGarantie(g.code); setShowGarantiePicker(false); }}
+                >
+                  <View style={styles.pickerItemLeft}>
+                    <View style={[
+                      styles.garantieIcon, 
+                      { backgroundColor: selectedGarantie === g.code ? theme.colors.primary : theme.colors.textSecondary }
+                    ]}>
+                      <Ionicons name="medical-outline" size={16} color="white" />
+                    </View>
+                    <Text style={[
+                      styles.pickerItemText, 
+                      { color: selectedGarantie === g.code ? theme.colors.primary : theme.colors.textPrimary }
+                    ]}>
+                      {g.libelle}
+                    </Text>
+                  </View>
+                  {selectedGarantie === g.code && (
+                    <View style={[styles.checkmarkContainer, { backgroundColor: theme.colors.primary }]}>
+                      <Ionicons name="checkmark" size={12} color="white" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+
+      {/* Content */}
+      {initialLoading ? (
+        <View style={styles.content}>
+          <Loader visible={initialLoading} message="Chargement des ordonnances..." />
+        </View>
+      ) : (
+        <View style={styles.content}>
+          {resultsCount !== null && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Résultats: {resultsCount}</Text>
+            </View>
+          )}
+          <FlatList
+            data={prescriptions}
+            renderItem={renderPrescription}
+            keyExtractor={(item, index) => (item?.id ? `${item.id}-${index}` : `${index}`)}
+            initialNumToRender={10}
+            windowSize={5}
+            removeClippedSubviews={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            onEndReached={loadMoreData}
+            onEndReachedThreshold={0.1}
+            ListFooterComponent={() => 
+              loadingMore ? (
+                <View style={styles.loadingMoreContainer}>
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <Text style={styles.loadingMoreText}>Chargement...</Text>
+                </View>
+              ) : null
+            }
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Ionicons name="receipt-outline" size={48} color={theme.colors.textSecondary} />
+                <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                  Aucune ordonnance classique trouvée
+                </Text>
+                <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
+                  Aucune ordonnance classique pour la période sélectionnée
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+      )}
+      
+      {/* Loader overlay */}
+      <Loader 
+        visible={loading && !initialLoading} 
+        message="Mise à jour des données..." 
+        overlay={true}
+      />
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          onChange={onDateChange}
+        />
+      )}
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholder: {
+    width: 40,
+  },
+  filtersContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filtersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  filtersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  filtersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  filterCard: {
+    width: '48%',
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  filterInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 44,
+  },
+  filterInputText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  searchButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  pickerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  pickerHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerScroll: {
+    maxHeight: 250,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F3F4F6',
+  },
+  pickerItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  garantieIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  pickerItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  checkmarkContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  listContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
+  },
+  card: {
+    marginBottom: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    padding: 16,
+  },
+  cardLeft: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  cardRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  prescriptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionInfo: {
+    flex: 1,
+  },
+  prescriptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  
+  // Styles pour les cartes d'ordonnances classiques améliorées
+  prescriptionCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  prescriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  prescriptionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  prescriptionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  prescriptionStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  prescriptionContent: {
+    padding: 16,
+  },
+  prescriptionPatientInfo: {
+    marginBottom: 16,
+  },
+  prescriptionPatientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  prescriptionInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  prescriptionInfoItem: {
+    width: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  prescriptionInfoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  prescriptionInfoText: {
+    flex: 1,
+  },
+  prescriptionInfoLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  prescriptionInfoValue: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  prescriptionFooter: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  prescriptionFooterLeft: {
+    flex: 1,
+  },
+  prescriptionFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prescriptionFooterLabel: {
+    fontSize: 11,
+    marginRight: 8,
+  },
+  prescriptionFooterValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  prescriptionFooterRight: {
+    alignItems: 'center',
+  },
+  prescriptionPatient: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  prescriptionProvider: {
+    fontSize: 12,
+  },
+  contactInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  contactText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadingMoreText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666666',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+    minHeight: 300,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+});
+
+export default AssureClassicPrescriptionsScreen;

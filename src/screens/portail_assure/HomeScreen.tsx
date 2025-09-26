@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getGreeting, getLastConnectionText, getValidityStatus } from '../../utils';
+import { ApiService } from '../../services/ApiService';
 
 interface HomeScreenProps {
   navigation?: any;
@@ -20,9 +22,71 @@ interface HomeScreenProps {
 
 const { width } = Dimensions.get('window');
 
+interface RecentConsultation {
+  id: number;
+  beneficiaire_prenom: string;
+  beneficiaire_nom: string;
+  beneficiaire_matricule: string;
+  acte_libelle: string;
+  prestataire_libelle: string;
+  montant: string;
+  part_assurance: string;
+  part_patient: string;
+  taux_couverture: number;
+  created_at: string;
+}
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const [recentConsultations, setRecentConsultations] = useState<RecentConsultation[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(true);
+  const [apiService] = useState(() => new ApiService());
+
+  // Fonction pour charger les consultations récentes
+  const loadRecentConsultations = async () => {
+    try {
+      setLoadingConsultations(true);
+      console.log('🔄 Chargement des consultations récentes...');
+      
+      if (!user?.beneficiaire_matricule) {
+        console.log('❌ Pas de matricule utilisateur disponible');
+        setLoadingConsultations(false);
+        return;
+      }
+
+      const response = await apiService.getFamilyConsultations({
+        user_id: parseInt(user.id),
+        filiale_id: user.filiale_id || 1,
+        data: {
+          matricule_assure: user.beneficiaire_matricule
+        },
+        index: 0,
+        size: 3 // Limiter à 3 consultations récentes
+      });
+
+      console.log('✅ Consultations récentes chargées:', response);
+      
+      if (response?.items && Array.isArray(response.items)) {
+        setRecentConsultations(response.items);
+      } else {
+        console.log('⚠️ Aucune consultation trouvée');
+        setRecentConsultations([]);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des consultations récentes:', error);
+      setRecentConsultations([]);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
+
+  // Charger les consultations récentes au montage du composant
+  useEffect(() => {
+    if (user?.beneficiaire_matricule) {
+      loadRecentConsultations();
+    }
+  }, [user?.beneficiaire_matricule]);
 
   const quickActions = [
     { 
@@ -170,7 +234,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </Text>
             <TouchableOpacity 
               style={styles.viewAllButton}
-              onPress={() => navigation?.navigate('MainTabs', { screen: 'Expenses' })}
+              onPress={() => navigation?.navigate('MainTabs', { screen: 'Family', params: { activeTab: 'consultations' } })}
             >
               <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>
                 Afficher tout
@@ -179,69 +243,86 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
           <View style={styles.consultationsList}>
-            {[
-              { 
-                id: 1,
-                doctor: 'Dr. Marie KOUAME', 
-                specialty: 'Médecine générale', 
-                date: '15/01/2025',
-                status: 'Validé',
-                amount: '15 000 F CFA',
-                icon: 'medical-outline',
-                color: theme.colors.success
-              },
-              { 
-                id: 2,
-                doctor: 'Dr. Jean BAMBA', 
-                specialty: 'Cardiologie', 
-                date: '12/01/2025',
-                status: 'En attente',
-                amount: '25 000 F CFA',
-                icon: 'heart-outline',
-                color: theme.colors.warning
-              },
-              { 
-                id: 3,
-                doctor: 'Dr. Fatou DIAGNE', 
-                specialty: 'Pédiatrie', 
-                date: '10/01/2025',
-                status: 'Validé',
-                amount: '18 000 F CFA',
-                icon: 'people-outline',
-                color: theme.colors.success
-              },
-            ].map((consultation, index) => (
-              <TouchableOpacity 
-                key={consultation.id} 
-                style={[styles.consultationCard, { backgroundColor: theme.colors.surface }]}
-                activeOpacity={0.7}
-              >
-                <View style={styles.consultationLeft}>
-                  <View style={[styles.consultationIcon, { backgroundColor: '#E3F2FD' }]}>
-                    <Ionicons name={consultation.icon as any} size={20} color="#3d8f9d" />
-                  </View>
-                  <View style={styles.consultationInfo}>
-                    <Text style={[styles.consultationDoctor, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-                      {consultation.doctor}
-                    </Text>
-                    <Text style={[styles.consultationSpecialty, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                      {consultation.specialty}
-                    </Text>
-                    <Text style={[styles.consultationDate, { color: theme.colors.textSecondary }]}>
-                      {consultation.date}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.consultationRight}>
-                  <View style={[styles.consultationStatus, { backgroundColor: consultation.color }]}>
-                    <Text style={styles.consultationStatusText}>{consultation.status}</Text>
-                  </View>
-                  <Text style={[styles.consultationAmount, { color: theme.colors.textPrimary }]}>
-                    {consultation.amount}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {loadingConsultations ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+                  Chargement des consultations...
+                </Text>
+              </View>
+            ) : recentConsultations.length > 0 ? (
+              recentConsultations.map((consultation) => {
+                const formatDate = (dateString: string) => {
+                  try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('fr-FR');
+                  } catch {
+                    return 'Date invalide';
+                  }
+                };
+
+                const formatAmount = (amount: string) => {
+                  try {
+                    const num = parseFloat(amount);
+                    return `${num.toLocaleString('fr-FR')} F CFA`;
+                  } catch {
+                    return amount;
+                  }
+                };
+
+                const getStatusInfo = (tauxCouverture: number) => {
+                  if (tauxCouverture > 0) {
+                    return { text: 'Remboursée', color: '#059669' };
+                  }
+                  return { text: 'En attente', color: '#D97706' };
+                };
+
+                const statusInfo = getStatusInfo(consultation.taux_couverture);
+
+                return (
+                  <TouchableOpacity
+                    key={consultation.id} 
+                    style={[styles.consultationCard, { backgroundColor: theme.colors.surface }]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.consultationLeft}>
+                      <View style={[styles.consultationIcon, { backgroundColor: '#E3F2FD' }]}>
+                        <Ionicons name="medical-outline" size={20} color="#3d8f9d" />
+                      </View>
+                      <View style={styles.consultationInfo}>
+                        <Text style={[styles.consultationDoctor, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                          {consultation.beneficiaire_prenom} {consultation.beneficiaire_nom}
+                        </Text>
+                        <Text style={[styles.consultationSpecialty, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                          {consultation.acte_libelle}
+                        </Text>
+                        <Text style={[styles.consultationDate, { color: theme.colors.textSecondary }]}>
+                          {formatDate(consultation.created_at)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.consultationRight}>
+                      <View style={[styles.consultationStatus, { backgroundColor: statusInfo.color }]}>
+                        <Text style={styles.consultationStatusText}>{statusInfo.text}</Text>
+                      </View>
+                      <Text style={[styles.consultationAmount, { color: theme.colors.textPrimary }]}>
+                        {formatAmount(consultation.montant)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="medical-outline" size={48} color={theme.colors.textSecondary} />
+                <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                  Aucune consultation récente
+                </Text>
+                <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
+                  Vos consultations récentes apparaîtront ici
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -456,6 +537,33 @@ const styles = StyleSheet.create({
   consultationAmount: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

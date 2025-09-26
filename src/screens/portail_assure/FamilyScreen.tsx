@@ -284,103 +284,119 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
       style={[styles.memberCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
     >
-      {/* Avatar et badges */}
-      <View style={styles.memberTopSection}>
-        <View style={styles.memberAvatar}>
-          <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
-            {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
-          </Text>
+      {/* Header avec avatar et statut */}
+      <View style={[styles.memberHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.memberHeaderLeft}>
+          <View style={[styles.memberAvatar, { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
+              {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
+            </Text>
+          </View>
+          <View style={styles.memberHeaderInfo}>
+            <Text style={[styles.memberName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.prenom} {item.nom}
+            </Text>
+            <View style={[styles.memberStatusBadge, { backgroundColor: getStatusColor(item.statut_libelle) }]}>
+              <Text style={[styles.memberStatusText, { color: 'white' }]} numberOfLines={1}>
+                {item.statut_libelle}
+              </Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.memberBadges}>
+        <View style={styles.memberHeaderRight}>
           {item.is_vip && (
             <View style={styles.vipBadge}>
-              <Ionicons name="star" size={10} color="#FFD700" />
+              <Ionicons name="star" size={12} color="#FFD700" />
               <Text style={styles.vipText}>VIP</Text>
             </View>
           )}
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut_libelle) }]}>
-            <Text style={styles.statusBadgeText}>{item.statut_libelle}</Text>
-          </View>
         </View>
       </View>
 
       {/* Informations principales */}
-      <View style={styles.memberInfo}>
-        <Text style={[styles.memberName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-          {item.prenom} {item.nom}
-        </Text>
-        <Text style={[styles.memberMatricule, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-          Matricule: {item.matricule}
-        </Text>
-        <Text style={[styles.memberAge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-          {calculateAge(item.date_naissance)} ans • {formatDate(item.date_naissance)}
-        </Text>
-        
-        {/* Informations supplémentaires */}
-        <View style={styles.memberDetails}>
+      <View style={styles.memberContent}>
+        <View style={styles.memberInfoGrid}>
+          <View style={styles.memberInfoItem}>
+            <View style={styles.memberInfoIcon}>
+              <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.memberInfoText}>
+              <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
+              <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.matricule || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.memberInfoItem}>
+            <View style={styles.memberInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.memberInfoText}>
+              <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Âge</Text>
+              <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {calculateAge(item.date_naissance)} ans
+              </Text>
+            </View>
+          </View>
+
           {item.civilite_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="person-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.civilite_libelle}</Text>
+            <View style={styles.memberInfoItem}>
+              <View style={styles.memberInfoIcon}>
+                <Ionicons name="person-circle-outline" size={16} color={theme.colors.textSecondary} />
+              </View>
+              <View style={styles.memberInfoText}>
+                <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Civilité</Text>
+                <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.civilite_libelle}
+                </Text>
+              </View>
             </View>
           )}
+
           {item.college_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="school-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.college_libelle}</Text>
-            </View>
-          )}
-          {item.police_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="shield-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.police_libelle}</Text>
-            </View>
-          )}
-          {item.college_bareme_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="card-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.college_bareme_libelle}</Text>
+            <View style={styles.memberInfoItem}>
+              <View style={styles.memberInfoIcon}>
+                <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
+              </View>
+              <View style={styles.memberInfoText}>
+                <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
+                <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.college_libelle}
+                </Text>
+              </View>
             </View>
           )}
         </View>
-      </View>
 
-      {/* Contacts */}
-      <View style={styles.memberContacts}>
-        {item.telephone && (
-          <View style={styles.contactItem}>
-            <Ionicons name="call-outline" size={14} color="#3d8f9d" />
-            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.telephone}
-            </Text>
+        {/* Contacts et Police en bas */}
+        <View style={[styles.memberFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.memberFooterLeft}>
+            {item.telephone && (
+              <View style={styles.memberContactItem}>
+                <Ionicons name="call-outline" size={14} color={theme.colors.textSecondary} />
+                <Text style={[styles.memberContactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {item.telephone}
+                </Text>
+              </View>
+            )}
+            {item.police_libelle && (
+              <View style={styles.memberContactItem}>
+                <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />
+                <Text style={[styles.memberContactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {item.police_libelle}
+                </Text>
+              </View>
+            )}
           </View>
-        )}
-        {item.email && (
-          <View style={styles.contactItem}>
-            <Ionicons name="mail-outline" size={14} color="#3d8f9d" />
-            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.email}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Statistiques */}
-      <View style={styles.memberStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="medical-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>0</Text>
-          <Text style={styles.statLabel}>Prestations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="cash-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>0 FCFA</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="calendar-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>-</Text>
-          <Text style={styles.statLabel}>Dernière visite</Text>
+          {item.email && (
+            <View style={styles.memberFooterRight}>
+              <Ionicons name="mail-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.memberEmailText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {item.email}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -389,51 +405,106 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
   const renderConsultation = ({ item }: { item: FamilyConsultation }) => {
     console.log('🎨 Rendu consultation:', item);
     return (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      activeOpacity={0.7}
-    >
-      {/* Main Content */}
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.consultationIconContainer}>
-            <Ionicons 
-              name="medical-outline" 
-              size={24} 
-              color={theme.colors.primary} 
-            />
+      <View style={[styles.consultationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {/* Header */}
+        <View style={[styles.consultationHeader, { borderBottomColor: theme.colors.border }]}>
+          <View style={styles.consultationHeaderLeft}>
+            <View style={[styles.consultationIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="medical-outline" size={20} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]}>
+              Consultation
+            </Text>
           </View>
-          <View style={styles.consultationInfo}>
-            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.libelle || item.acte_libelle}
+          <View style={[styles.consultationStatusBadge, { backgroundColor: theme.colors.successLight }]}>
+            <Text style={[styles.consultationStatusText, { color: theme.colors.success }]}>
+              Remboursée
             </Text>
-            <Text style={[styles.consultationPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.beneficiaire_prenom} {item.beneficiaire_nom}
-            </Text>
-            <Text style={[styles.consultationProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.prestataire_libelle}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {formatDate(item.created_at)}
-              </Text>
-            </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="location-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.prestataire_libelle}
-              </Text>
-            </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Text style={[styles.consultationAmount, { color: theme.colors.primary }]} numberOfLines={1}>
-            {formatAmountDisplay(item.montant)}
-          </Text>
+
+        {/* Patient Info */}
+        <View style={styles.consultationContent}>
+          <View style={styles.consultationPatientInfo}>
+            <Text style={[styles.consultationPatientName, { color: theme.colors.textPrimary }]}>
+              {item.beneficiaire_prenom} {item.beneficiaire_nom} ({item.beneficiaire_matricule})
+            </Text>
+          </View>
+
+          {/* Details Grid */}
+          <View style={styles.consultationInfoGrid}>
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="medical-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Acte</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.acte_libelle || item.libelle}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.prestataire_libelle}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {formatDate(item.created_at)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.consultationInfoItem}>
+              <View style={styles.consultationInfoIcon}>
+                <Ionicons name="card-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.consultationInfoText}>
+                <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Montant</Text>
+                <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {formatAmountDisplay(item.montant)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Financial Details */}
+          <View style={[styles.consultationFooter, { borderTopColor: theme.colors.border }]}>
+            <View style={styles.consultationFooterLeft}>
+              <View style={styles.consultationFinancialItem}>
+                <Text style={[styles.consultationFinancialLabel, { color: theme.colors.textSecondary }]}>
+                  Part assurance
+                </Text>
+                <Text style={[styles.consultationFinancialValue, { color: theme.colors.success }]}>
+                  {formatAmountDisplay(item.part_assurance)} ({item.taux_couverture}%)
+                </Text>
+              </View>
+              <View style={styles.consultationFinancialItem}>
+                <Text style={[styles.consultationFinancialLabel, { color: theme.colors.textSecondary }]}>
+                  Part patient
+                </Text>
+                <Text style={[styles.consultationFinancialValue, { color: theme.colors.warning }]}>
+                  {formatAmountDisplay(item.part_patient)}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
-    </TouchableOpacity>
     );
   };
 
@@ -517,40 +588,94 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
 
   const renderPrime = ({ item }: { item: any }) => (
     <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[styles.primeCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.consultationIconContainer}>
-            <Ionicons name="card-outline" size={24} color={theme.colors.primary} />
+      {/* Header avec icône et statut */}
+      <View style={[styles.primeHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.primeHeaderLeft}>
+          <View style={[styles.primeIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="card-outline" size={20} color={theme.colors.primary} />
           </View>
-          <View style={styles.consultationInfo}>
-            <Text style={[styles.consultationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.type_prime || 'Prime'}
-            </Text>
-            <Text style={[styles.consultationPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          <View style={styles.primeHeaderInfo}>
+            <Text style={[styles.primeTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
               {item.beneficiaire_nom || 'N/A'} {item.beneficiaire_prenom || ''}
             </Text>
-            <Text style={[styles.consultationProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              Statut: {item.statut_libelle || 'N/A'}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {formatDate(item.date_prime)}
-              </Text>
-            </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="cash-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                Montant: {formatAmountDisplay(item.montant_prime)}
+            <View style={[styles.statusBadge, { backgroundColor: theme.colors.primaryLight }]}>
+              <Text style={[styles.statusText, { color: theme.colors.primary }]} numberOfLines={1}>
+                {item.statut_libelle || 'N/A'}
               </Text>
             </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+        <View style={styles.primeHeaderRight}>
+          <Text style={[styles.primeAmount, { color: theme.colors.primary }]} numberOfLines={1}>
+            {formatAmountDisplay(item.prime_ttc)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Informations principales */}
+      <View style={styles.primeContent}>
+        <View style={styles.primeInfoGrid}>
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.matricule || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.college_libelle || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="shield-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Police</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.police_libelle || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.primeInfoItem}>
+            <View style={styles.primeInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.primeInfoText}>
+              <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Date d'entrée</Text>
+              <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {formatDate(item.date_entree)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Plafond en bas */}
+        <View style={[styles.primeFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.primeFooterLeft}>
+            <Ionicons name="trending-up-outline" size={16} color={theme.colors.textSecondary} />
+            <Text style={[styles.primeFooterLabel, { color: theme.colors.textSecondary }]}>Plafond</Text>
+          </View>
+          <Text style={[styles.primeFooterValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+            {formatAmountDisplay(item.plafond)}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -622,40 +747,45 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
           />
         );
       case 'prescriptions':
-        console.log('💊 Rendu prescriptions - Nombre:', prescriptions.length);
-        console.log('💊 Données prescriptions:', prescriptions);
+        console.log('💊 Rendu prescriptions (boutons uniquement)');
         return (
-          <FlatList
-            data={prescriptions}
-            renderItem={renderPrescription}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContainer}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={theme.colors.primary}
-              />
-            }
-            ListEmptyComponent={() => {
-              console.log('💊 Affichage état vide pour prescriptions');
-              return (
-                <View style={styles.emptyState}>
-                  <Ionicons name="document-text-outline" size={48} color={theme.colors.textSecondary} />
-                  <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-                    Aucune ordonnance trouvée
-                  </Text>
-                  <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-                    Vous n'avez pas encore d'ordonnances enregistrées
-                  </Text>
-                  <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary, fontSize: 12, marginTop: 8 }]}>
-                    Matricule: {user?.beneficiaire_matricule || 'Non disponible'}
-                  </Text>
+          <View style={styles.prescriptionsContainer}>
+            <View style={styles.prescriptionButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.prescriptionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => navigation.navigate('ClassicPrescriptions')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.prescriptionButtonContent}>
+                  <View style={[styles.prescriptionButtonIcon, { backgroundColor: theme.colors.primaryLight }]}>
+                    <Ionicons name="document-outline" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.prescriptionButtonInfo}>
+                    <Text style={[styles.prescriptionButtonTitle, { color: theme.colors.textPrimary }]}>Ordonnances Classiques</Text>
+                    <Text style={[styles.prescriptionButtonSubtitle, { color: theme.colors.textSecondary }]}>Consultez vos ordonnances classiques</Text>
+                  </View>
+                  <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
                 </View>
-              );
-            }}
-          />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.prescriptionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => navigation.navigate('EPPrescriptions')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.prescriptionButtonContent}>
+                  <View style={[styles.prescriptionButtonIcon, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="shield-medical-outline" size={24} color="#D97706" />
+                  </View>
+                  <View style={styles.prescriptionButtonInfo}>
+                    <Text style={[styles.prescriptionButtonTitle, { color: theme.colors.textPrimary }]}>Ordonnances avec Entente Préalable</Text>
+                    <Text style={[styles.prescriptionButtonSubtitle, { color: theme.colors.textSecondary }]}>Consultez vos ordonnances nécessitant une entente préalable</Text>
+                  </View>
+                  <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         );
       case 'primes':
         console.log('💰 Rendu primes - Nombre:', primes.length);
@@ -735,7 +865,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'members' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Membres ({familyMembers.length})
+            Membres
           </Text>
         </TouchableOpacity>
         
@@ -751,7 +881,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'consultations' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Consultations ({consultations.length})
+            Consultations
           </Text>
         </TouchableOpacity>
         
@@ -767,7 +897,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'prescriptions' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Ordonnances ({prescriptions.length})
+            Ordonnances
           </Text>
         </TouchableOpacity>
         
@@ -783,7 +913,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'primes' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Prime ({primes.length})
+            Prime
           </Text>
         </TouchableOpacity>
         </ScrollView>
@@ -1079,6 +1209,107 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  
+  // Styles pour les cartes de consultations améliorées
+  consultationCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  consultationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  consultationHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  consultationIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  consultationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  consultationStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  consultationStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  consultationContent: {
+    padding: 16,
+  },
+  consultationPatientInfo: {
+    marginBottom: 16,
+  },
+  consultationPatientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  consultationInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  consultationInfoItem: {
+    width: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  consultationInfoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  consultationInfoText: {
+    flex: 1,
+  },
+  consultationInfoLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  consultationInfoValue: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  consultationFooter: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  consultationFooterLeft: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  consultationFinancialItem: {
+    flex: 1,
+  },
+  consultationFinancialLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  consultationFinancialValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   loadingMoreContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1176,6 +1407,285 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     marginLeft: 6,
+  },
+  // Styles pour les boutons de navigation des ordonnances
+  prescriptionsContainer: {
+    flex: 1,
+  },
+  prescriptionButtonsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 10,
+    gap: 12,
+  },
+  prescriptionButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  prescriptionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  prescriptionButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionButtonInfo: {
+    flex: 1,
+  },
+  prescriptionButtonTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  prescriptionButtonSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  
+  // Styles pour les cartes de primes améliorées
+  primeCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  
+  // Styles pour les cartes de membres améliorées
+  memberCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  memberHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  memberHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  memberInitials: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  memberHeaderInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  memberStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  memberStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  memberHeaderRight: {
+    alignItems: 'flex-end',
+  },
+  vipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3CD',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  vipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#856404',
+    marginLeft: 2,
+  },
+  memberContent: {
+    padding: 16,
+  },
+  memberInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  memberInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 12,
+  },
+  memberInfoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  memberInfoText: {
+    flex: 1,
+  },
+  memberInfoLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  memberInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  memberFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  memberFooterLeft: {
+    flex: 1,
+  },
+  memberContactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  memberContactText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  memberFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberEmailText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  primeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  primeHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  primeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  primeHeaderInfo: {
+    flex: 1,
+  },
+  primeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  primeHeaderRight: {
+    alignItems: 'flex-end',
+  },
+  primeAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  primeContent: {
+    padding: 16,
+  },
+  primeInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  primeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 12,
+  },
+  primeInfoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  primeInfoText: {
+    flex: 1,
+  },
+  primeInfoLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  primeInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  primeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  primeFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  primeFooterLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  primeFooterValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
