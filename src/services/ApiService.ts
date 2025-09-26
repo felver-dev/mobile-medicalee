@@ -378,6 +378,74 @@ export class ApiService {
     console.log("✅ Réponse API getOrdonnancesByEntentePrealable:", response);
     return response;
   }
+
+  async getPrescriptionActeByCriteria(params: {
+    userId: number;
+    filialeId: number;
+    garantieCodification?: string;
+    matriculeAssure?: number;
+    prestataireId?: number;
+    beneficiaireId?: number;
+    isEntentePrealable?: boolean;
+    ordonnanceId?: number;
+    dateDebut: string;
+    dateFin: string;
+    index: number;
+    size: number;
+  }): Promise<any> {
+    console.log("🔍 Appel API getPrescriptionActeByCriteria:", params);
+
+    const data: any = {};
+    
+    // Ajouter les champs optionnels dans data
+    if (params.prestataireId) {
+      data.prestataire_id = params.prestataireId;
+    }
+    
+    if (params.beneficiaireId) {
+      data.beneficiaire_id = params.beneficiaireId;
+    }
+    
+    if (params.isEntentePrealable !== undefined) {
+      data.is_entente_prealable = params.isEntentePrealable;
+    }
+    
+    if (params.ordonnanceId) {
+      data.ordonnance_id = params.ordonnanceId;
+    }
+
+    const payload: any = {
+      user_id: params.userId,
+      filiale_id: params.filialeId,
+      date_debut: `${params.dateDebut}T00:00:00.000Z`,
+      date_fin: `${params.dateFin}T23:59:59.999Z`,
+      data,
+      index: params.index,
+      size: params.size,
+    };
+
+    // Ajouter les champs optionnels au niveau principal
+    if (params.garantieCodification) {
+      payload.garantie_codification = params.garantieCodification;
+    }
+    
+    if (params.matriculeAssure) {
+      payload.matricule_assure = params.matriculeAssure;
+    }
+
+    console.log(
+      "📦 Payload getPrescriptionActeByCriteria →",
+      JSON.stringify(payload, null, 2)
+    );
+
+    const response = await this.makeRequest(
+      "POST",
+      "/prescriptionActe/getByCriteria",
+      payload
+    );
+    console.log("✅ Réponse API getPrescriptionActeByCriteria:", response);
+    return response;
+  }
 }
 
 export default ApiService;
