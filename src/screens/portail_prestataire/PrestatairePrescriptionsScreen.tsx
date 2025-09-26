@@ -55,7 +55,7 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
 
   const handleOptionPress = (route: string) => {
     console.log('Navigation vers:', route);
-    // navigation.navigate(route);
+    navigation.navigate(route);
   };
 
   const renderOption = (option: typeof prescriptionOptions[0], index: number) => (
