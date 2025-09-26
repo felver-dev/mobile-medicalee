@@ -810,7 +810,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'members' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Membres ({familyMembers.length})
+            Membres
           </Text>
         </TouchableOpacity>
         
@@ -826,7 +826,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'consultations' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Consultations ({consultations.length})
+            Consultations
           </Text>
         </TouchableOpacity>
         
@@ -842,7 +842,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'prescriptions' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Ordonnances ({prescriptions.length})
+            Ordonnances
           </Text>
         </TouchableOpacity>
         
@@ -858,7 +858,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             styles.tabText,
             { color: activeTab === 'primes' ? theme.colors.primary : theme.colors.textSecondary }
           ]}>
-            Prime ({primes.length})
+            Prime
           </Text>
         </TouchableOpacity>
         </ScrollView>
