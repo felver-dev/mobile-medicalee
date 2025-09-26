@@ -284,103 +284,119 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
       style={[styles.memberCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
     >
-      {/* Avatar et badges */}
-      <View style={styles.memberTopSection}>
-        <View style={styles.memberAvatar}>
-          <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
-            {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
-          </Text>
+      {/* Header avec avatar et statut */}
+      <View style={[styles.memberHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.memberHeaderLeft}>
+          <View style={[styles.memberAvatar, { backgroundColor: theme.colors.primary }]}>
+            <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
+              {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
+            </Text>
+          </View>
+          <View style={styles.memberHeaderInfo}>
+            <Text style={[styles.memberName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.prenom} {item.nom}
+            </Text>
+            <View style={[styles.memberStatusBadge, { backgroundColor: getStatusColor(item.statut_libelle) }]}>
+              <Text style={[styles.memberStatusText, { color: 'white' }]} numberOfLines={1}>
+                {item.statut_libelle}
+              </Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.memberBadges}>
+        <View style={styles.memberHeaderRight}>
           {item.is_vip && (
             <View style={styles.vipBadge}>
-              <Ionicons name="star" size={10} color="#FFD700" />
+              <Ionicons name="star" size={12} color="#FFD700" />
               <Text style={styles.vipText}>VIP</Text>
             </View>
           )}
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut_libelle) }]}>
-            <Text style={styles.statusBadgeText}>{item.statut_libelle}</Text>
-          </View>
         </View>
       </View>
 
       {/* Informations principales */}
-      <View style={styles.memberInfo}>
-        <Text style={[styles.memberName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-          {item.prenom} {item.nom}
-        </Text>
-        <Text style={[styles.memberMatricule, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-          Matricule: {item.matricule}
-        </Text>
-        <Text style={[styles.memberAge, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-          {calculateAge(item.date_naissance)} ans • {formatDate(item.date_naissance)}
-        </Text>
-        
-        {/* Informations supplémentaires */}
-        <View style={styles.memberDetails}>
+      <View style={styles.memberContent}>
+        <View style={styles.memberInfoGrid}>
+          <View style={styles.memberInfoItem}>
+            <View style={styles.memberInfoIcon}>
+              <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.memberInfoText}>
+              <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
+              <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.matricule || 'N/A'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.memberInfoItem}>
+            <View style={styles.memberInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+            </View>
+            <View style={styles.memberInfoText}>
+              <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Âge</Text>
+              <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {calculateAge(item.date_naissance)} ans
+              </Text>
+            </View>
+          </View>
+
           {item.civilite_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="person-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.civilite_libelle}</Text>
+            <View style={styles.memberInfoItem}>
+              <View style={styles.memberInfoIcon}>
+                <Ionicons name="person-circle-outline" size={16} color={theme.colors.textSecondary} />
+              </View>
+              <View style={styles.memberInfoText}>
+                <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Civilité</Text>
+                <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.civilite_libelle}
+                </Text>
+              </View>
             </View>
           )}
+
           {item.college_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="school-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.college_libelle}</Text>
-            </View>
-          )}
-          {item.police_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="shield-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.police_libelle}</Text>
-            </View>
-          )}
-          {item.college_bareme_libelle && (
-            <View style={styles.detailItem}>
-              <Ionicons name="card-outline" size={12} color="#3d8f9d" />
-              <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>{item.college_bareme_libelle}</Text>
+            <View style={styles.memberInfoItem}>
+              <View style={styles.memberInfoIcon}>
+                <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
+              </View>
+              <View style={styles.memberInfoText}>
+                <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
+                <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {item.college_libelle}
+                </Text>
+              </View>
             </View>
           )}
         </View>
-      </View>
 
-      {/* Contacts */}
-      <View style={styles.memberContacts}>
-        {item.telephone && (
-          <View style={styles.contactItem}>
-            <Ionicons name="call-outline" size={14} color="#3d8f9d" />
-            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.telephone}
-            </Text>
+        {/* Contacts et Police en bas */}
+        <View style={[styles.memberFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.memberFooterLeft}>
+            {item.telephone && (
+              <View style={styles.memberContactItem}>
+                <Ionicons name="call-outline" size={14} color={theme.colors.textSecondary} />
+                <Text style={[styles.memberContactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {item.telephone}
+                </Text>
+              </View>
+            )}
+            {item.police_libelle && (
+              <View style={styles.memberContactItem}>
+                <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />
+                <Text style={[styles.memberContactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {item.police_libelle}
+                </Text>
+              </View>
+            )}
           </View>
-        )}
-        {item.email && (
-          <View style={styles.contactItem}>
-            <Ionicons name="mail-outline" size={14} color="#3d8f9d" />
-            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.email}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Statistiques */}
-      <View style={styles.memberStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="medical-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>0</Text>
-          <Text style={styles.statLabel}>Prestations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="cash-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>0 FCFA</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="calendar-outline" size={16} color="#3d8f9d" />
-          <Text style={[styles.statNumber, { color: isDark ? '#FFFFFF' : theme.colors.textPrimary }]}>-</Text>
-          <Text style={styles.statLabel}>Dernière visite</Text>
+          {item.email && (
+            <View style={styles.memberFooterRight}>
+              <Ionicons name="mail-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.memberEmailText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {item.email}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -1283,6 +1299,136 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  
+  // Styles pour les cartes de membres améliorées
+  memberCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  memberHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  memberHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  memberInitials: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  memberHeaderInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  memberStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  memberStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  memberHeaderRight: {
+    alignItems: 'flex-end',
+  },
+  vipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3CD',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  vipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#856404',
+    marginLeft: 2,
+  },
+  memberContent: {
+    padding: 16,
+  },
+  memberInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  memberInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '48%',
+    marginBottom: 12,
+  },
+  memberInfoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  memberInfoText: {
+    flex: 1,
+  },
+  memberInfoLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  memberInfoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  memberFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  memberFooterLeft: {
+    flex: 1,
+  },
+  memberContactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  memberContactText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  memberFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberEmailText: {
+    fontSize: 12,
+    marginLeft: 6,
   },
   primeHeader: {
     flexDirection: 'row',

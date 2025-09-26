@@ -21,8 +21,9 @@ export class DependencyContainer {
         const request = {
           user_id: user.id,
           filiale_id: user.filiale_id,
-          matricule_assure: matriculeAssure.toString(),
-          data: {},
+          data: {
+            matricule_assure: matriculeAssure.toString(),
+          },
           index: index,
           size: size,
         };
