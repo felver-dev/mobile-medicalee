@@ -40,6 +40,23 @@ interface ClassicPrescription {
 
 const PAGE_SIZE = 10;
 
+// Mapping des garanties (code → libellé)
+const GARANTIES = [
+  { code: 'PHARMA', libelle: 'Pharmacie' },
+  { code: 'EXA', libelle: 'Autres examens' },
+  { code: 'AUX', libelle: 'Auxiliaires médicaux' },
+  { code: 'AMP', libelle: 'Assistance médicale à la procréation' },
+  { code: 'BILN', libelle: 'Bilan de santé' },
+  { code: 'BIO', libelle: 'Biologie' },
+  { code: 'CONS', libelle: 'Consultation' },
+  { code: 'DEN', libelle: 'Dentisterie' },
+  { code: 'HOS', libelle: 'Hospitalisation' },
+  { code: 'IMA', libelle: 'Imagerie & examens spécialisés' },
+  { code: 'MAT', libelle: 'Maternité' },
+  { code: 'OPT', libelle: 'Optique' },
+  { code: 'TRA', libelle: 'Transport médicalisé' },
+];
+
 const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -52,14 +69,15 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
   const [hasMoreData, setHasMoreData] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [resultsCount, setResultsCount] = useState<number | null>(null);
   
   // Filtres
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
   const [matriculeBeneficiaire, setMatriculeBeneficiaire] = useState('');
-  const [selectedGarantie, setSelectedGarantie] = useState<string | undefined>(undefined);
+  const [selectedGarantie, setSelectedGarantie] = useState<string | undefined>('PHARMA');
   const [showGarantiePicker, setShowGarantiePicker] = useState(false);
-  const apiRef = useRef<ApiService>();
+  const apiRef = useRef<ApiService | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeDateField, setActiveDateField] = useState<'start' | 'end'>('start');
   const [tempDate, setTempDate] = useState<Date>(new Date());
@@ -114,16 +132,29 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
     }
     
     try {
-      // Déterminer les dates effectives: si vides → aujourd'hui / demain
+      // Déterminer les dates effectives par défaut:
+      // si vides → aujourd'hui (début) et demain (fin)
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      const effectiveStart = dateDebut || todayStr;
-      const effectiveEnd = dateFin || tomorrowStr;
+      // Si on filtre par matricule bénéficiaire sans dates, élargir période (début d'année → aujourd'hui)
+      let effectiveStart = dateDebut;
+      let effectiveEnd = dateFin;
+      if (!effectiveStart || !effectiveEnd) {
+        if (matriculeBeneficiaire && !dateDebut && !dateFin) {
+          const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          effectiveStart = yearStart;
+          effectiveEnd = todayStr;
+        } else {
+          effectiveStart = effectiveStart || todayStr;
+          effectiveEnd = effectiveEnd || tomorrowStr;
+        }
+      }
 
       console.log('🔍 [Classic] Chargement - page:', page, 'dateDebut:', effectiveStart, 'dateFin:', effectiveEnd, 'matriculeBeneficiaire:', matriculeBeneficiaire);
 
+      // Revenir au comportement initial: endpoint ordonnances (un item = une ordonnance)
       const resp = await apiRef.current!.getClassicPrescriptions({
         garantieCodification: selectedGarantie || undefined,
         matriculeAssure: user?.beneficiaire_matricule ? String(user.beneficiaire_matricule) : undefined,
@@ -136,14 +167,17 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
         filialeId: typeof user?.filiale_id === 'number' ? user.filiale_id : undefined,
       });
       const listRaw = Array.isArray(resp?.items) ? resp.items : (Array.isArray(resp?.data?.items) ? resp.data.items : []);
+      const totalCount: number | undefined = typeof resp?.count === 'number' ? resp.count : (typeof resp?.data?.count === 'number' ? resp.data.count : undefined);
       const list: ClassicPrescription[] = listRaw as ClassicPrescription[];
-      console.log('✅ [Classic] Réponse - items:', list.length, 'exemple:', list[0]);
+      console.log('✅ [Classic] Réponse - items:', list.length, 'count:', totalCount, 'ids:', list.map((it:any)=>it?.id));
 
       if (isRefresh || page === 0) {
         setPrescriptions(list);
       } else {
         setPrescriptions(prev => [...prev, ...list]);
       }
+      if (typeof totalCount === 'number') setResultsCount(totalCount);
+      else setResultsCount(list.length);
       
       setHasMoreData(list.length === PAGE_SIZE);
       setCurrentPage(page);
@@ -159,7 +193,7 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
       setInitialLoading(false);
       setIsLoading(false);
     }
-  }, [user, dateDebut, dateFin, matriculeBeneficiaire]);
+  }, [user, dateDebut, dateFin, matriculeBeneficiaire, selectedGarantie]);
 
   const loadMoreData = useCallback(() => {
     if (!loadingMore && hasMoreData && !isLoading) {
@@ -168,11 +202,11 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
   }, [loadingMore, hasMoreData, currentPage, isLoading]);
 
   useEffect(() => {
-    if (user?.beneficiaire_matricule && !hasLoadedInitial.current) {
+    if (!hasLoadedInitial.current) {
       hasLoadedInitial.current = true;
       loadData(true, 0);
     }
-  }, [user?.beneficiaire_matricule]);
+  }, [user]);
 
   const handleSearch = () => {
     setCurrentPage(0);
@@ -210,9 +244,15 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
             <View style={styles.contactInfo}>
               <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
               <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {formatDate((item as any).date_prescription)}
+                {formatDate((item as any).date_prescription || (item as any).created_at)}
               </Text>
             </View>
+          <View style={styles.contactInfo}>
+            <Ionicons name="id-card-outline" size={14} color={theme.colors.textSecondary} />
+            <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {(item as any).beneficiaire_matricule}
+            </Text>
+          </View>
             <View style={styles.contactInfo}>
               <Ionicons name="medical-outline" size={14} color={theme.colors.textSecondary} />
               <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
@@ -264,7 +304,7 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
               onPress={() => setShowGarantiePicker(!showGarantiePicker)}
             >
               <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-                {selectedGarantie || 'Toutes garanties'}
+                {selectedGarantie ? (GARANTIES.find(g => g.code === selectedGarantie)?.libelle || selectedGarantie) : 'Toutes garanties'}
               </Text>
               <Ionicons name="chevron-down-outline" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
@@ -343,10 +383,10 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
                 <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>Toutes garanties</Text>
                 {!selectedGarantie && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
               </TouchableOpacity>
-              {[ 'PHARMA','EXA','AUX','AMP','BILN','BIO','CONS','DEN','HOS','IMA','MAT','OPT','TRA' ].map((code) => (
-                <TouchableOpacity key={code} style={styles.pickerItem} onPress={() => { setSelectedGarantie(code); setShowGarantiePicker(false); }}>
-                  <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>{code}</Text>
-                  {selectedGarantie === code && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
+              {GARANTIES.map((g) => (
+                <TouchableOpacity key={g.code} style={styles.pickerItem} onPress={() => { setSelectedGarantie(g.code); setShowGarantiePicker(false); }}>
+                  <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>{g.libelle}</Text>
+                  {selectedGarantie === g.code && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -361,10 +401,18 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
         </View>
       ) : (
         <View style={styles.content}>
+          {resultsCount !== null && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Résultats: {resultsCount}</Text>
+            </View>
+          )}
           <FlatList
             data={prescriptions}
             renderItem={renderPrescription}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item, index) => (item?.id ? `${item.id}-${index}` : `${index}`)}
+            initialNumToRender={10}
+            windowSize={5}
+            removeClippedSubviews={false}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
             refreshControl={

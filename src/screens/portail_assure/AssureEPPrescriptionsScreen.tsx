@@ -110,12 +110,12 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
   const [isLoading, setIsLoading] = useState(false);
   
   // Filtres
-  const [selectedGarantie, setSelectedGarantie] = useState('PHARMA');
+  const [selectedGarantie, setSelectedGarantie] = useState<string | undefined>(undefined);
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
   const [matriculeBeneficiaire, setMatriculeBeneficiaire] = useState('');
   const [showGarantiePicker, setShowGarantiePicker] = useState(false);
-  const apiRef = useRef<ApiService>();
+  const apiRef = useRef<ApiService | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeDateField, setActiveDateField] = useState<'start' | 'end'>('start');
   const [tempDate, setTempDate] = useState<Date>(new Date());
@@ -134,6 +134,7 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
     
     setDateFin(today.toISOString().split('T')[0]);
     setDateDebut(threeMonthsAgo.toISOString().split('T')[0]);
+    setSelectedGarantie(undefined); // Default to "Toutes garanties"
   }, []);
 
   const onRefresh = useCallback(() => {
@@ -170,18 +171,40 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
       setLoading(true);
       setCurrentPage(0);
       setHasMoreData(true);
+    } else if (page === 0) {
+      setInitialLoading(true);
     } else {
       setLoadingMore(true);
     }
     
     try {
-      console.log('🔍 [EP] Chargement - page:', page, 'garantie:', selectedGarantie, 'dates:', dateDebut, dateFin, 'matriculeBeneficiaire:', matriculeBeneficiaire);
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      // Si on filtre par matricule bénéficiaire sans dates, élargir période (début d'année → aujourd'hui)
+      let effectiveStart = dateDebut;
+      let effectiveEnd = dateFin;
+      if (!effectiveStart || !effectiveEnd) {
+        if (matriculeBeneficiaire && !dateDebut && !dateFin) {
+          const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          effectiveStart = yearStart;
+          effectiveEnd = todayStr;
+        } else {
+          effectiveStart = effectiveStart || todayStr;
+          effectiveEnd = effectiveEnd || tomorrowStr;
+        }
+      }
+
+      console.log('🔍 [EP] Chargement - page:', page, 'garantie:', selectedGarantie, 'dates:', effectiveStart, effectiveEnd, 'matriculeBeneficiaire:', matriculeBeneficiaire);
       const resp = await apiRef.current!.getOrdonnancesByEntentePrealable({
-        garantieCodification: selectedGarantie,
-        matriculeAssure: String(user?.beneficiaire_matricule || ''),
+        userId: user?.id ? Number(user.id) : 1, // Use connected user's ID
+        filialeId: user?.filiale_id || 1, // Use connected user's filiale_id
+        garantieCodification: selectedGarantie === undefined ? undefined : selectedGarantie, // Send undefined if "Toutes garanties"
+        matriculeAssure: user?.beneficiaire_matricule || undefined, // Use connected user's matricule
         matriculeBeneficiaire: matriculeBeneficiaire || undefined,
-        dateDebut,
-        dateFin,
+        dateDebut: effectiveStart,
+        dateFin: effectiveEnd,
         index: page,
         size: PAGE_SIZE,
       });
@@ -217,11 +240,11 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
   }, [loadingMore, hasMoreData, currentPage, isLoading]);
 
   useEffect(() => {
-    if (user?.beneficiaire_matricule && !hasLoadedInitial.current) {
+    if (!hasLoadedInitial.current) {
       hasLoadedInitial.current = true;
-      loadData(true, 0);
+      loadData(false, 0); // Use false for isRefresh to avoid setting initialLoading
     }
-  }, [user?.beneficiaire_matricule]);
+  }, []);
 
   const handleSearch = () => {
     setCurrentPage(0);
@@ -274,7 +297,7 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
       <View style={styles.cardContent}>
         <View style={styles.cardLeft}>
           <View style={styles.prescriptionIcon}>
-            <Ionicons name="shield-medical-outline" size={24} color={theme.colors.primary} />
+              <Ionicons name="medical-outline" size={24} color={theme.colors.primary} />
           </View>
           <View style={styles.prescriptionInfo}>
             <Text style={[styles.prescriptionTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
@@ -348,9 +371,9 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
               style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
               onPress={() => setShowGarantiePicker(!showGarantiePicker)}
             >
-              <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-                {GARANTIES.find(g => g.code === selectedGarantie)?.libelle || 'Sélectionner'}
-              </Text>
+                  <Text style={[styles.filterInputText, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                    {GARANTIES.find(g => g.code === selectedGarantie)?.libelle || 'Toutes garanties'}
+                  </Text>
               <Ionicons name="chevron-down-outline" size={18} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -420,18 +443,25 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
                 <Ionicons name="close-outline" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-              {GARANTIES.map((garantie) => (
-                <TouchableOpacity 
-                  key={garantie.code} 
-                  style={styles.pickerItem} 
-                  onPress={() => { setSelectedGarantie(garantie.code); setShowGarantiePicker(false); }}
-                >
-                  <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>{garantie.libelle}</Text>
-                  {selectedGarantie === garantie.code && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+                  <TouchableOpacity 
+                    style={styles.pickerItem} 
+                    onPress={() => { setSelectedGarantie(undefined); setShowGarantiePicker(false); }}
+                  >
+                    <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>Toutes garanties</Text>
+                    {!selectedGarantie && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
+                  </TouchableOpacity>
+                  {GARANTIES.map((garantie) => (
+                    <TouchableOpacity 
+                      key={garantie.code} 
+                      style={styles.pickerItem} 
+                      onPress={() => { setSelectedGarantie(garantie.code); setShowGarantiePicker(false); }}
+                    >
+                      <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>{garantie.libelle}</Text>
+                      {selectedGarantie === garantie.code && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
           </View>
         )}
       </View>
@@ -468,7 +498,7 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
             }
             ListEmptyComponent={() => (
               <View style={styles.emptyState}>
-                <Ionicons name="shield-medical-outline" size={48} color={theme.colors.textSecondary} />
+                  <Ionicons name="medical-outline" size={48} color={theme.colors.textSecondary} />
                 <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
                   Aucune ordonnance avec entente préalable trouvée
                 </Text>
