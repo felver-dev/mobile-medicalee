@@ -359,8 +359,16 @@ export class ApiService {
     };
     
     if (params.garantieCodification) payload.garantie_codification = params.garantieCodification;
-    // Note: Pour les ordonnances avec entente préalable, on ne filtre pas par matricule_assure
-    // car les données peuvent être pour différents bénéficiaires
+    
+    // Inclure le matricule de l'assuré connecté pour filtrer les données
+    if (params.matriculeAssure) {
+      const asNumber = Number(params.matriculeAssure);
+      if (!Number.isNaN(asNumber)) {
+        payload.matricule_assure = asNumber;
+      } else {
+        payload.matricule_assure = params.matriculeAssure;
+      }
+    }
 
     console.log(
       "📦 Payload getOrdonnancesByEntentePrealable →",

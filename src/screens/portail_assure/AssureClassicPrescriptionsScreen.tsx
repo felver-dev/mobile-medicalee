@@ -88,9 +88,15 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
   
   const hasLoadedInitial = useRef(false);
 
-  // Pas de valeurs par défaut visuelles; on appliquera today/tomorrow au moment de l'appel si vide
+  // Initialiser les dates par défaut (90 derniers jours)
   useEffect(() => {
-    // no-op
+    const today = new Date();
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setDate(today.getDate() - 90);
+    
+    setDateFin(today.toISOString().split('T')[0]);
+    setDateDebut(threeMonthsAgo.toISOString().split('T')[0]);
+    setSelectedGarantie("PHARMA"); // Default to "PHARMA" comme dans l'écran EP
   }, []);
 
   const openDatePicker = (field: 'start' | 'end') => {
