@@ -1,13 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  API_CONFIG,
-  ApiResponse,
-  PaginatedResponse,
-  ApiError,
-} from "./apiConfig";
+import { ApiError } from "./apiConfig";
 import { CURRENT_ENV, logger } from "./environment";
-import { ErrorService } from "./ErrorService";
 
 export class ApiService {
   private api: AxiosInstance;
@@ -355,11 +349,12 @@ export class ApiService {
       index: params.index,
       size: params.size,
       latitude: 5.32654,
-      longitude: -4.023503
+      longitude: -4.023503,
     };
-    
-    if (params.garantieCodification) payload.garantie_codification = params.garantieCodification;
-    
+
+    if (params.garantieCodification)
+      payload.garantie_codification = params.garantieCodification;
+
     // Inclure le matricule de l'assuré connecté pour filtrer les données
     if (params.matriculeAssure) {
       const asNumber = Number(params.matriculeAssure);

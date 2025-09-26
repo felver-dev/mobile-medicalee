@@ -43,7 +43,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({ navigation }) => {
       title: 'Famille',
       icon: 'people-outline',
       screen: 'MainTabs',
-      params: { screen: 'Family' },
+      params: { screen: 'Family', params: { activeTab: 'members' } },
     },
     {
       title: 'Dépenses',

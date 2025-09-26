@@ -342,23 +342,42 @@ const MedicamentsScreen: React.FC = () => {
         </View>
         
         <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={[styles.searchBar, { backgroundColor: isDark ? theme.colors.surface : theme.colors.primaryLight, borderColor: theme.colors.border }]}> 
-            <Ionicons name="search-outline" size={20} color={theme.colors.textSecondary} />
+          <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+            <View style={[styles.searchIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="search-outline" size={18} color={theme.colors.primary} />
+            </View>
             <TextInput
               style={[styles.searchInput, { color: theme.colors.textPrimary }]}
-              placeholder="Tapez le nom du médicament puis appuyez sur rechercher..."
+              placeholder="Rechercher un médicament..."
               placeholderTextColor={theme.colors.textSecondary}
               value={searchInput}
               onChangeText={setSearchInput}
             />
             {searchInput.length > 0 && (
-              <TouchableOpacity onPress={handleClearSearch}>
-                <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+              <TouchableOpacity 
+                style={[styles.clearButton, { backgroundColor: theme.colors.background }]}
+                onPress={handleClearSearch}
+              >
+                <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity style={[styles.searchButton, { backgroundColor: theme.colors.primary }]} onPress={handleSearch}>
-            <Ionicons name="search" size={20} color="#FFFFFF" />
+          <TouchableOpacity 
+            style={[
+              styles.searchButton, 
+              { 
+                backgroundColor: searchInput.trim() ? theme.colors.primary : theme.colors.background,
+                borderColor: theme.colors.border
+              }
+            ]} 
+            onPress={handleSearch}
+            disabled={!searchInput.trim()}
+          >
+            <Ionicons 
+              name="search" 
+              size={18} 
+              color={searchInput.trim() ? "#FFFFFF" : theme.colors.textSecondary} 
+            />
           </TouchableOpacity>
         </View>
         
@@ -427,24 +446,42 @@ const MedicamentsScreen: React.FC = () => {
       </View>
       
       <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
-        <View style={[styles.searchBar, { backgroundColor: isDark ? theme.colors.surface : theme.colors.primaryLight, borderColor: theme.colors.border }]}> 
-          <Ionicons name="search-outline" size={20} color={theme.colors.textSecondary} />
+        <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+          <View style={[styles.searchIconContainer, { backgroundColor: theme.colors.primaryLight }]}>
+            <Ionicons name="search-outline" size={18} color={theme.colors.primary} />
+          </View>
           <TextInput
             style={[styles.searchInput, { color: theme.colors.textPrimary }]}
-            placeholder="Rechercher par nom de médicament..."
+            placeholder="Rechercher un médicament..."
             placeholderTextColor={theme.colors.textSecondary}
             value={searchInput}
             onChangeText={setSearchInput}
           />
           {searchInput.length > 0 && (
-            <TouchableOpacity onPress={handleClearSearch}>
-              <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+            <TouchableOpacity 
+              style={[styles.clearButton, { backgroundColor: theme.colors.background }]}
+              onPress={handleClearSearch}
+            >
+              <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
-        {/* Bouton de recherche - toujours visible */}
-        <TouchableOpacity style={[styles.searchButton, { backgroundColor: theme.colors.primary }]} onPress={handleSearch}>
-          <Ionicons name="search" size={20} color="#FFFFFF" />
+        <TouchableOpacity 
+          style={[
+            styles.searchButton, 
+            { 
+              backgroundColor: searchInput.trim() ? theme.colors.primary : theme.colors.background,
+              borderColor: theme.colors.border
+            }
+          ]} 
+          onPress={handleSearch}
+          disabled={!searchInput.trim()}
+        >
+          <Ionicons 
+            name="search" 
+            size={18} 
+            color={searchInput.trim() ? "#FFFFFF" : theme.colors.textSecondary} 
+          />
         </TouchableOpacity>
       </View>
       
@@ -525,40 +562,51 @@ const styles = StyleSheet.create({
     width: 40,
   },
   searchContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flex: 1,
-    marginRight: 10,
-    height: 60,
+    height: 48,
+  },
+  searchIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#333333',
-    height: 40,
+    fontSize: 15,
+    height: 24,
     textAlignVertical: 'center',
   },
-  searchButton: {
-    backgroundColor: '#3d8f9d',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+  clearButton: {
+    width: 20,
+    height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 60,
-    width: 60,
+    marginLeft: 8,
+  },
+  searchButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 48,
+    width: 48,
   },
   searchLoaderContainer: {
     flexDirection: 'row',
@@ -712,3 +760,4 @@ const styles = StyleSheet.create({
 });
 
 export default MedicamentsScreen;
+
