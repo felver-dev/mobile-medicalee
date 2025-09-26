@@ -7,7 +7,8 @@ import {
   TouchableOpacity, 
   SafeAreaView,
   StatusBar,
-  Platform 
+  Platform,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePrestataireTheme } from '../../context/PrestataireThemeContext';
@@ -86,9 +87,13 @@ const PrestataireProfileScreen: React.FC<PrestataireProfileScreenProps> = ({ nav
         <View style={[styles.profileCard, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.avatarText}>
-                {user?.prenom?.charAt(0) || ''}{user?.nom?.charAt(0) || ''}
-              </Text>
+              {user && user.image_url ? (
+                <Image source={{ uri: user.image_url }} style={styles.avatarImage} resizeMode="cover" />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {user?.prenom?.charAt(0) || ''}{user?.nom?.charAt(0) || ''}
+                </Text>
+              )}
             </View>
           </View>
           <Text style={[styles.userName, { color: theme.colors.textPrimary }]}>
@@ -263,6 +268,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   userName: {
     fontSize: 20,

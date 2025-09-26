@@ -18,6 +18,7 @@ import PrestataireMedicamentsScreen from '../screens/portail_prestataire/Prestat
 import MedicamentDetailsScreen from '../screens/portail_assure/MedicamentDetailsScreen';
 import PrestataireServeMedicamentsScreen from '../screens/portail_prestataire/PrestataireServeMedicamentsScreen';
 import PrestataireQuantitySelectionScreen from '../screens/portail_prestataire/PrestataireQuantitySelectionScreen';
+import PrestatairePrescriptionsScreen from '../screens/portail_prestataire/PrestatairePrescriptionsScreen';
 import PrestataireDrawerMenu from './PrestataireDrawerMenu';
 
 const Tab = createBottomTabNavigator();
@@ -37,6 +38,8 @@ function PrestataireTabNavigator() {
             iconName = focused ? 'analytics' : 'analytics-outline';
           } else if (route.name === 'Prestations') {
             iconName = focused ? 'receipt' : 'receipt-outline';
+          } else if (route.name === 'Prescriptions') {
+            iconName = focused ? 'document' : 'document-outline';
           } else if (route.name === 'Reports') {
             iconName = focused ? 'document-text' : 'document-text-outline';
           } else if (route.name === 'Medicaments') {
@@ -70,6 +73,13 @@ function PrestataireTabNavigator() {
         component={PrestatairePrestationsScreen}
         options={{
           title: 'Prestations',
+        }}
+      />
+      <Tab.Screen 
+        name="Prescriptions" 
+        component={PrestatairePrescriptionsScreen}
+        options={{
+          title: 'Prescriptions',
         }}
       />
       <Tab.Screen 
