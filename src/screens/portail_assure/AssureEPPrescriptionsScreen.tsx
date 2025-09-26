@@ -434,34 +434,79 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
           <Text style={styles.searchButtonText}>Rechercher</Text>
         </TouchableOpacity>
 
-        {/* Picker de garantie */}
+        {/* Picker de garantie amélioré */}
         {showGarantiePicker && (
           <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle, { color: theme.colors.textPrimary }]}>Sélectionner une garantie</Text>
-              <TouchableOpacity onPress={() => setShowGarantiePicker(false)}>
-                <Ionicons name="close-outline" size={20} color={theme.colors.textSecondary} />
+            <View style={[styles.pickerHeader, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.pickerHeaderLeft}>
+                <Ionicons name="shield-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.pickerTitle, { color: theme.colors.textPrimary }]}>Sélectionner une garantie</Text>
+              </View>
+              <TouchableOpacity 
+                style={[styles.closeButton, { backgroundColor: theme.colors.background }]}
+                onPress={() => setShowGarantiePicker(false)}
+              >
+                <Ionicons name="close-outline" size={18} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
-                <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
-                  <TouchableOpacity 
-                    style={styles.pickerItem} 
-                    onPress={() => { setSelectedGarantie(undefined); setShowGarantiePicker(false); }}
-                  >
-                    <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>Toutes garanties</Text>
-                    {!selectedGarantie && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
-                  </TouchableOpacity>
-                  {GARANTIES.map((garantie) => (
-                    <TouchableOpacity 
-                      key={garantie.code} 
-                      style={styles.pickerItem} 
-                      onPress={() => { setSelectedGarantie(garantie.code); setShowGarantiePicker(false); }}
-                    >
-                      <Text style={[styles.pickerItemText, { color: theme.colors.textPrimary }]}>{garantie.libelle}</Text>
-                      {selectedGarantie === garantie.code && <Ionicons name="checkmark" size={16} color={theme.colors.primary} />}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity 
+                style={[
+                  styles.pickerItem, 
+                  { borderBottomColor: theme.colors.border },
+                  !selectedGarantie && { backgroundColor: theme.colors.primaryLight }
+                ]} 
+                onPress={() => { setSelectedGarantie(undefined); setShowGarantiePicker(false); }}
+              >
+                <View style={styles.pickerItemLeft}>
+                  <View style={[styles.garantieIcon, { backgroundColor: theme.colors.primary }]}>
+                    <Ionicons name="apps-outline" size={16} color="white" />
+                  </View>
+                  <Text style={[
+                    styles.pickerItemText, 
+                    { color: !selectedGarantie ? theme.colors.primary : theme.colors.textPrimary }
+                  ]}>
+                    Toutes garanties
+                  </Text>
+                </View>
+                {!selectedGarantie && (
+                  <View style={[styles.checkmarkContainer, { backgroundColor: theme.colors.primary }]}>
+                    <Ionicons name="checkmark" size={12} color="white" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              {GARANTIES.map((garantie) => (
+                <TouchableOpacity 
+                  key={garantie.code} 
+                  style={[
+                    styles.pickerItem, 
+                    { borderBottomColor: theme.colors.border },
+                    selectedGarantie === garantie.code && { backgroundColor: theme.colors.primaryLight }
+                  ]} 
+                  onPress={() => { setSelectedGarantie(garantie.code); setShowGarantiePicker(false); }}
+                >
+                  <View style={styles.pickerItemLeft}>
+                    <View style={[
+                      styles.garantieIcon, 
+                      { backgroundColor: selectedGarantie === garantie.code ? theme.colors.primary : theme.colors.textSecondary }
+                    ]}>
+                      <Ionicons name="medical-outline" size={16} color="white" />
+                    </View>
+                    <Text style={[
+                      styles.pickerItemText, 
+                      { color: selectedGarantie === garantie.code ? theme.colors.primary : theme.colors.textPrimary }
+                    ]}>
+                      {garantie.libelle}
+                    </Text>
+                  </View>
+                  {selectedGarantie === garantie.code && (
+                    <View style={[styles.checkmarkContainer, { backgroundColor: theme.colors.primary }]}>
+                      <Ionicons name="checkmark" size={12} color="white" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
       </View>
@@ -657,29 +702,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  pickerHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pickerTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   pickerScroll: {
-    maxHeight: 200,
+    maxHeight: 250,
   },
   pickerItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
     borderBottomColor: '#F3F4F6',
   },
+  pickerItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  garantieIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   pickerItemText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
+    flex: 1,
+  },
+  checkmarkContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
