@@ -290,50 +290,109 @@ const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = 
   );
 
   const renderOrdonnance = ({ item }: { item: EPOrdonnance }) => (
-    <TouchableOpacity 
-      style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardContent}>
-        <View style={styles.cardLeft}>
-          <View style={styles.prescriptionIcon}>
-              <Ionicons name="medical-outline" size={24} color={theme.colors.primary} />
+    <View style={[styles.epCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      {/* Header */}
+      <View style={[styles.epHeader, { borderBottomColor: theme.colors.border }]}>
+        <View style={styles.epHeaderLeft}>
+          <View style={[styles.epIconContainer, { backgroundColor: '#FEF3C7' }]}>
+            <Ionicons name="shield-outline" size={20} color="#D97706" />
           </View>
-          <View style={styles.prescriptionInfo}>
-            <Text style={[styles.prescriptionTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.code || `Ordonnance #${item.id}`}
-            </Text>
-            <Text style={[styles.prescriptionPatient, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.beneficiaire_prenom} {item.beneficiaire_nom}
-            </Text>
-            <Text style={[styles.prescriptionProvider, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.prestataire_libelle}
-            </Text>
-            <View style={styles.contactInfo}>
-              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.epTitle, { color: theme.colors.textPrimary }]}>
+            Entente Préalable
+          </Text>
+        </View>
+        <View style={[styles.epStatusBadge, { backgroundColor: '#FEF3C7' }]}>
+          <Text style={[styles.epStatusText, { color: '#D97706' }]}>
+            En attente
+          </Text>
+        </View>
+      </View>
+
+      {/* Patient Info */}
+      <View style={styles.epContent}>
+        <View style={styles.epPatientInfo}>
+          <Text style={[styles.epPatientName, { color: theme.colors.textPrimary }]}>
+            {item.beneficiaire_prenom} {item.beneficiaire_nom} ({item.beneficiaire_matricule})
+          </Text>
+        </View>
+
+        {/* Details Grid */}
+        <View style={styles.epInfoGrid}>
+          <View style={styles.epInfoItem}>
+            <View style={styles.epInfoIcon}>
+              <Ionicons name="document-text-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.epInfoText}>
+              <Text style={[styles.epInfoLabel, { color: theme.colors.textSecondary }]}>Code</Text>
+              <Text style={[styles.epInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.code || `EP-${item.id}`}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.epInfoItem}>
+            <View style={styles.epInfoIcon}>
+              <Ionicons name="business-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.epInfoText}>
+              <Text style={[styles.epInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+              <Text style={[styles.epInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.prestataire_libelle}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.epInfoItem}>
+            <View style={styles.epInfoIcon}>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
+            </View>
+            <View style={styles.epInfoText}>
+              <Text style={[styles.epInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
+              <Text style={[styles.epInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                 {formatDate(item.created_at)}
               </Text>
             </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="medical-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.total_prescription} prescription(s), {item.total_entente_prealable} entente(s)
-              </Text>
+          </View>
+
+          <View style={styles.epInfoItem}>
+            <View style={styles.epInfoIcon}>
+              <Ionicons name="medical-outline" size={16} color={theme.colors.primary} />
             </View>
-            <View style={styles.contactInfo}>
-              <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.contactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.garantie_libelle}
+            <View style={styles.epInfoText}>
+              <Text style={[styles.epInfoLabel, { color: theme.colors.textSecondary }]}>Prescriptions</Text>
+              <Text style={[styles.epInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                {item.total_prescription} prescription(s)
               </Text>
             </View>
           </View>
         </View>
-        <View style={styles.cardRight}>
-          <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+
+        {/* Footer */}
+        <View style={[styles.epFooter, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.epFooterLeft}>
+            <View style={styles.epFooterItem}>
+              <Text style={[styles.epFooterLabel, { color: theme.colors.textSecondary }]}>
+                Garantie
+              </Text>
+              <Text style={[styles.epFooterValue, { color: theme.colors.primary }]}>
+                {item.garantie_libelle}
+              </Text>
+            </View>
+            <View style={styles.epFooterItem}>
+              <Text style={[styles.epFooterLabel, { color: theme.colors.textSecondary }]}>
+                Ententes
+              </Text>
+              <Text style={[styles.epFooterValue, { color: '#D97706' }]}>
+                {item.total_entente_prealable} en attente
+              </Text>
+            </View>
+          </View>
+          <View style={styles.epFooterRight}>
+            <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+          </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const headerTopPadding = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0) + 20;
@@ -788,34 +847,115 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FEF3C7',
+  },
+  
+  // Styles pour les cartes d'ordonnances avec entente préalable améliorées
+  epCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  epHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  epHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  epIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  prescriptionInfo: {
-    flex: 1,
-  },
-  prescriptionTitle: {
+  epTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 2,
   },
-  prescriptionPatient: {
+  epStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  epStatusText: {
     fontSize: 12,
-    marginBottom: 2,
+    fontWeight: '600',
   },
-  prescriptionProvider: {
-    fontSize: 12,
+  epContent: {
+    padding: 16,
   },
-  contactInfo: {
+  epPatientInfo: {
+    marginBottom: 16,
+  },
+  epPatientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  epInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  epInfoItem: {
+    width: '50%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  contactText: {
-    fontSize: 12,
-    marginLeft: 6,
+  epInfoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  epInfoText: {
+    flex: 1,
+  },
+  epInfoLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  epInfoValue: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  epFooter: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  epFooterLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  epFooterItem: {
+    flex: 1,
+  },
+  epFooterLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  epFooterValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  epFooterRight: {
+    alignItems: 'center',
+    marginLeft: 16,
   },
   loadingMoreContainer: {
     flexDirection: 'row',
@@ -842,11 +982,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 12,
     textAlign: 'center',
+    color: '#333333',
   },
   emptyStateSubtext: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 22,
+    color: '#666666',
     marginBottom: 4,
   },
 });

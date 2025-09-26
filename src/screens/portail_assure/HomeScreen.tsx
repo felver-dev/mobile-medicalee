@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getGreeting, getLastConnectionText, getValidityStatus } from '../../utils';
+import { ApiService } from '../../services/ApiService';
 
 interface HomeScreenProps {
   navigation?: any;
@@ -20,9 +22,71 @@ interface HomeScreenProps {
 
 const { width } = Dimensions.get('window');
 
+interface RecentConsultation {
+  id: number;
+  beneficiaire_prenom: string;
+  beneficiaire_nom: string;
+  beneficiaire_matricule: string;
+  acte_libelle: string;
+  prestataire_libelle: string;
+  montant: string;
+  part_assurance: string;
+  part_patient: string;
+  taux_couverture: number;
+  created_at: string;
+}
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const [recentConsultations, setRecentConsultations] = useState<RecentConsultation[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(true);
+  const [apiService] = useState(() => new ApiService());
+
+  // Fonction pour charger les consultations récentes
+  const loadRecentConsultations = async () => {
+    try {
+      setLoadingConsultations(true);
+      console.log('🔄 Chargement des consultations récentes...');
+      
+      if (!user?.beneficiaire_matricule) {
+        console.log('❌ Pas de matricule utilisateur disponible');
+        setLoadingConsultations(false);
+        return;
+      }
+
+      const response = await apiService.getFamilyConsultations({
+        user_id: parseInt(user.id),
+        filiale_id: user.filiale_id || 1,
+        data: {
+          matricule_assure: user.beneficiaire_matricule
+        },
+        index: 0,
+        size: 3 // Limiter à 3 consultations récentes
+      });
+
+      console.log('✅ Consultations récentes chargées:', response);
+      
+      if (response?.items && Array.isArray(response.items)) {
+        setRecentConsultations(response.items);
+      } else {
+        console.log('⚠️ Aucune consultation trouvée');
+        setRecentConsultations([]);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des consultations récentes:', error);
+      setRecentConsultations([]);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
+
+  // Charger les consultations récentes au montage du composant
+  useEffect(() => {
+    if (user?.beneficiaire_matricule) {
+      loadRecentConsultations();
+    }
+  }, [user?.beneficiaire_matricule]);
 
   const quickActions = [
     { 

@@ -239,8 +239,8 @@ const AssureClassicPrescriptionsScreen: React.FC<AssureClassicPrescriptionsScree
             Ordonnance Classique
           </Text>
         </View>
-        <View style={[styles.prescriptionStatusBadge, { backgroundColor: theme.colors.successLight }]}>
-          <Text style={[styles.prescriptionStatusText, { color: theme.colors.success }]}>
+        <View style={[styles.prescriptionStatusBadge, { backgroundColor: '#D1FAE5' }]}>
+          <Text style={[styles.prescriptionStatusText, { color: '#059669' }]}>
             Validée
           </Text>
         </View>
@@ -797,6 +797,109 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 2,
+  },
+  
+  // Styles pour les cartes d'ordonnances classiques améliorées
+  prescriptionCard: {
+    marginHorizontal: 2,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  prescriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  prescriptionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  prescriptionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  prescriptionStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  prescriptionContent: {
+    padding: 16,
+  },
+  prescriptionPatientInfo: {
+    marginBottom: 16,
+  },
+  prescriptionPatientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  prescriptionInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  prescriptionInfoItem: {
+    width: '50%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  prescriptionInfoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  prescriptionInfoText: {
+    flex: 1,
+  },
+  prescriptionInfoLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  prescriptionInfoValue: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  prescriptionFooter: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  prescriptionFooterLeft: {
+    flex: 1,
+  },
+  prescriptionFooterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prescriptionFooterLabel: {
+    fontSize: 11,
+    marginRight: 8,
+  },
+  prescriptionFooterValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  prescriptionFooterRight: {
+    alignItems: 'center',
   },
   prescriptionPatient: {
     fontSize: 12,
