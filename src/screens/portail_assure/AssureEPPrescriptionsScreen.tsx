@@ -19,6 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
 import ApiService from '../../services/ApiService';
+import { GARANTIES } from '../../constants/garanties';
 
 interface AssureEPPrescriptionsScreenProps {
   navigation: any;
@@ -79,22 +80,7 @@ interface EPOrdonnance {
 
 const PAGE_SIZE = 20;
 
-// Mapping des garanties
-const GARANTIES = [
-  { code: 'PHARMA', libelle: 'Pharmacie' },
-  { code: 'EXA', libelle: 'Autres examens' },
-  { code: 'AUX', libelle: 'Auxiliaires médicaux' },
-  { code: 'AMP', libelle: 'Assistance médicale à la procréation' },
-  { code: 'BILN', libelle: 'Bilan de santé' },
-  { code: 'BIO', libelle: 'Biologie' },
-  { code: 'CONS', libelle: 'Consultation' },
-  { code: 'DEN', libelle: 'Dentisterie' },
-  { code: 'HOS', libelle: 'Hospitalisation' },
-  { code: 'IMA', libelle: 'Imagerie & examens spécialisés' },
-  { code: 'MAT', libelle: 'Maternité' },
-  { code: 'OPT', libelle: 'Optique' },
-  { code: 'TRA', libelle: 'Transport médicalisé' },
-];
+// Utilisation des garanties centralisées
 
 const AssureEPPrescriptionsScreen: React.FC<AssureEPPrescriptionsScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();

@@ -8,14 +8,17 @@ import {
   FlatList,
   Modal,
   TextInput,
-  ScrollView
+  ScrollView,
+  Dimensions,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
-import { SafeAreaView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { usePrestataireTheme } from '../../context/PrestataireThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import Loader, { LoadingCard } from '../../components/Loader';
+import ApiService from '../../services/ApiService';
 
 interface PrestationsByBeneficiaireScreenProps {
   navigation: any;
@@ -23,26 +26,31 @@ interface PrestationsByBeneficiaireScreenProps {
 
 interface PrestationItem {
   id: number;
-  nom_beneficiaire: string;
-  prenom_beneficiaire: string;
-  matricule_assure: number;
-  type_prestation: string;
+  beneficiaire_nom: string;
+  beneficiaire_prenom: string;
+  matricule_assure: string;
+  acte_libelle: string;
   montant: number;
-  date_prestation: string;
+  part_assurance: number;
+  part_patient: number;
+  created_at: string;
   statut: string;
   garantie_libelle: string;
-  details?: string;
+  prestataire_libelle: string;
+  quantite?: number;
+  prix_unitaire?: number;
 }
 
 interface BeneficiaireFilter {
   matriculeBeneficiaire: string;
-  dateDebut: string;
-  dateFin: string;
+  dateDebut: Date;
+  dateFin: Date;
 }
 
 const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const { theme } = usePrestataireTheme();
+  const [apiService] = useState(() => new ApiService());
   const [refreshing, setRefreshing] = useState(false);
   const [prestations, setPrestations] = useState<PrestationItem[]>([]);
   const [filteredPrestations, setFilteredPrestations] = useState<PrestationItem[]>([]);
@@ -51,47 +59,152 @@ const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenP
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filters, setFilters] = useState<BeneficiaireFilter>({
     matriculeBeneficiaire: '',
-    dateDebut: '',
-    dateFin: ''
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
+    dateFin: new Date()
+  });
+  const [tempFilters, setTempFilters] = useState<BeneficiaireFilter>({
+    matriculeBeneficiaire: '',
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
+    dateFin: new Date()
   });
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
+  const [showDateFinPicker, setShowDateFinPicker] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (page: number = 0, reset: boolean = true) => {
     setLoading(true);
+    setError(null);
+    
+    if (reset) {
+      setCurrentPage(0);
+      setHasMoreData(true);
+    }
+    
     try {
-      console.log('🔍 PrestationsByBeneficiaireScreen.loadData démarré');
+      console.log('🔍 PrestationsByBeneficiaireScreen.loadData démarré - Page:', page);
       
-      // TODO: Intégrer l'API réelle ici
-      // Pour l'instant, données vides
-      setPrestations([]);
-      setFilteredPrestations([]);
+      if (!user) {
+        console.log('❌ Utilisateur non connecté');
+        setError('Utilisateur non connecté');
+        return;
+      }
+
+      const payload = {
+        user_id: user.id,
+        filiale_id: user.filiale_id,
+        matricule_assure: filters.matriculeBeneficiaire ? parseInt(filters.matriculeBeneficiaire) : undefined,
+        date_debut: `${filters.dateDebut.toISOString().split('T')[0]}T00:00:00.000Z`,
+        date_fin: `${filters.dateFin.toISOString().split('T')[0]}T00:00:00.000Z`,
+        data: {
+          prestataire_id: user.prestataire_id || user.id,
+          beneficiaire_id: filters.matriculeBeneficiaire ? parseInt(filters.matriculeBeneficiaire) : undefined
+        },
+        index: page * 100,
+        size: 100
+      };
+
+      console.log('📤 Payload API:', JSON.stringify(payload, null, 2));
+
+      const response = await apiService.getPrestations(payload);
+      
+      console.log('📥 Réponse API complète:', response);
+      
+      if (response && !response.hasError && response.items) {
+        console.log('📥 Données reçues:', response.items.length, 'éléments');
+        
+        if (reset) {
+          setPrestations(response.items);
+          setFilteredPrestations(response.items);
+        } else {
+          setPrestations(prev => [...prev, ...response.items]);
+          setFilteredPrestations(prev => [...prev, ...response.items]);
+        }
+        
+        // Vérifier s'il y a plus de données
+        setHasMoreData(response.items.length >= 100);
+        setCurrentPage(page);
+        setError(null);
+      } else {
+        console.log('⚠️ Aucune donnée reçue ou erreur dans la réponse');
+        if (reset) {
+          setPrestations([]);
+          setFilteredPrestations([]);
+        }
+        setHasMoreData(false);
+        setError(null);
+      }
 
       console.log('✅ Chargement des prestations par bénéficiaire terminé');
 
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement des prestations par bénéficiaire:', error);
+    } catch (error: any) {
+      console.log('⚠️ Erreur API:', error?.code || 'Erreur inconnue');
+      
+      // Gestion des erreurs spécifiques
+      if (error?.code === '404') {
+        setError('Aucune prestation trouvée pour cette période');
+      } else if (error?.code === '401') {
+        setError('Session expirée, veuillez vous reconnecter');
+      } else if (error?.code === '500') {
+        setError('Erreur serveur, veuillez réessayer plus tard');
+      } else {
+        setError('Impossible de charger les prestations');
+      }
+      
+      if (reset) {
+        setPrestations([]);
+        setFilteredPrestations([]);
+      }
+      setHasMoreData(false);
     } finally {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, []);
+  }, [user, filters, apiService]);
 
   useEffect(() => {
-    loadData();
+    loadData(0, true);
   }, [loadData]);
 
-  const applyFilters = () => {
-    let filtered = [...prestations];
-
-    if (filters.matriculeBeneficiaire) {
-      filtered = filtered.filter(p => 
-        p.nom_beneficiaire.toLowerCase().includes(filters.matriculeBeneficiaire.toLowerCase()) ||
-        p.prenom_beneficiaire.toLowerCase().includes(filters.matriculeBeneficiaire.toLowerCase())
-      );
+  const loadMoreData = useCallback(() => {
+    console.log('🔄 loadMoreData appelé - loading:', loading, 'hasMoreData:', hasMoreData, 'currentPage:', currentPage);
+    if (!loading && hasMoreData) {
+      console.log('📥 Chargement de la page suivante:', currentPage + 1);
+      loadData(currentPage + 1, false);
+    } else {
+      console.log('⏹️ Chargement arrêté - loading:', loading, 'hasMoreData:', hasMoreData);
     }
+  }, [loading, hasMoreData, currentPage, loadData]);
 
-    setFilteredPrestations(filtered);
+  const onRefresh = useCallback(() => {
+    loadData(0, true);
+  }, [loadData]);
+
+  const handleDateDebutChange = (event: any, selectedDate?: Date) => {
+    setShowDateDebutPicker(false);
+    if (selectedDate) {
+      setTempFilters({...tempFilters, dateDebut: selectedDate});
+    }
+  };
+
+  const handleDateFinChange = (event: any, selectedDate?: Date) => {
+    setShowDateFinPicker(false);
+    if (selectedDate) {
+      setTempFilters({...tempFilters, dateFin: selectedDate});
+    }
+  };
+
+  const openFilterModal = () => {
+    setTempFilters(filters);
+    setShowFilterModal(true);
+  };
+
+  const openPrestationModal = (prestation: PrestationItem) => {
+    setSelectedPrestation(prestation);
+    setShowDetailsModal(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -119,6 +232,10 @@ const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenP
     }
   };
 
+  const getStatusText = (prestation: PrestationItem) => {
+    return prestation.statut || 'Inconnu';
+  };
+
   const handlePrestationPress = (prestation: PrestationItem) => {
     setSelectedPrestation(prestation);
     setShowDetailsModal(true);
@@ -128,45 +245,129 @@ const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenP
     <TouchableOpacity 
       style={[styles.prestationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
-      onPress={() => handlePrestationPress(item)}
+      onPress={() => openPrestationModal(item)}
     >
-      <View style={styles.prestationContent}>
-        <View style={styles.prestationLeft}>
+      {/* Header avec icône et statut */}
+      <View style={styles.prestationHeader}>
+        <View style={styles.prestationHeaderLeft}>
           <View style={[styles.prestationIcon, { backgroundColor: getStatusColor(item.statut) + '15' }]}>
             <Ionicons 
-              name={item.type_prestation === 'Consultation' ? 'medical-outline' : 'flask-outline'} 
-              size={22} 
+              name={item.acte_libelle?.includes('CONSULTATION') ? 'medical-outline' : 'flask-outline'} 
+              size={20} 
               color={getStatusColor(item.statut)} 
             />
           </View>
           <View style={styles.prestationInfo}>
-            <Text style={[styles.patientName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.prenom_beneficiaire} {item.nom_beneficiaire}
-            </Text>
-            <Text style={[styles.prestationType, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.type_prestation}
+            <Text style={[styles.prestationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.acte_libelle || 'Non renseigné'}
             </Text>
             <Text style={[styles.prestationDate, { color: theme.colors.textSecondary }]}>
-              {formatDate(item.date_prestation)}
-            </Text>
-            <Text style={[styles.matriculeText, { color: theme.colors.textSecondary }]}>
-              Matricule: {item.matricule_assure}
+              {formatDate(item.created_at)}
             </Text>
           </View>
         </View>
-        <View style={styles.prestationRight}>
-          <Text style={[styles.amountText, { color: theme.colors.textPrimary }]}>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut) }]}>
+          <Text style={styles.statusText}>{getStatusText(item)}</Text>
+        </View>
+      </View>
+
+      {/* Informations patient avec nouvelle disposition */}
+      <View style={styles.patientSectionNew}>
+        <View style={styles.patientCardContainer}>
+          <View style={styles.patientHeaderCard}>
+            <View style={[styles.patientAvatarCard, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Ionicons name="person" size={20} color={theme.colors.primary} />
+            </View>
+            <View style={styles.patientDetails}>
+              <Text style={[styles.patientNameCard, { color: theme.colors.textPrimary }]} numberOfLines={2}>
+                {item.beneficiaire_prenom} {item.beneficiaire_nom}
+              </Text>
+              <View style={styles.patientBadgeContainer}>
+                <View style={[styles.patientBadge, { backgroundColor: theme.colors.primary + '10' }]}>
+                  <Ionicons name="card-outline" size={12} color={theme.colors.primary} />
+                  <Text style={[styles.patientBadgeText, { color: theme.colors.primary }]}>
+                    {item.matricule_assure || 'Non renseigné'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Footer avec montants */}
+      <View style={styles.prestationFooter}>
+        <View style={styles.amountRow}>
+          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Total</Text>
+          <Text style={[styles.amountValue, { color: theme.colors.textPrimary }]}>
             {formatAmount(item.montant)}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut) }]}>
-            <Text style={styles.statusText}>{item.statut}</Text>
-          </View>
+        </View>
+        <View style={styles.amountRow}>
+          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Assurance</Text>
+          <Text style={[styles.amountValue, { color: '#3d8f9d' }]}>
+            {formatAmount(item.part_assurance)}
+          </Text>
+        </View>
+        <View style={styles.amountRow}>
+          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Patient</Text>
+          <Text style={[styles.amountValue, { color: '#FF9800' }]}>
+            {formatAmount(item.part_patient)}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
   const renderContent = () => {
+    console.log('🔍 renderContent appelé - error:', error, 'loading:', loading, 'initialLoading:', initialLoading, 'prestations:', prestations.length, 'filteredPrestations:', filteredPrestations.length);
+    
+    if (error) {
+      return (
+        <View style={styles.errorState}>
+          <View style={[styles.errorIcon, { backgroundColor: '#F44336' + '15' }]}>
+            <Ionicons name="alert-circle-outline" size={48} color="#F44336" />
+          </View>
+          <Text style={[styles.errorTitle, { color: '#2D3748' }]}>
+            Erreur de chargement
+          </Text>
+          <Text style={[styles.errorText, { color: '#718096' }]}>
+            {error}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => loadData(0, true)}
+          >
+            <Ionicons name="refresh-outline" size={20} color="white" />
+            <Text style={[styles.retryButtonText, { color: 'white' }]}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (filteredPrestations.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyStateIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="medical-outline" size={48} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.emptyStateTitle, { color: '#2D3748' }]}>
+            Aucune prestation trouvée
+          </Text>
+          <Text style={[styles.emptyStateText, { color: '#718096' }]}>
+            Aucune prestation pour la période sélectionnée
+          </Text>
+          <TouchableOpacity 
+            style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+            onPress={openFilterModal}
+          >
+            <Ionicons name="filter-outline" size={20} color="white" />
+            <Text style={[styles.emptyStateButtonText, { color: 'white' }]}>Modifier les filtres</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <FlatList
         data={filteredPrestations}
@@ -176,22 +377,25 @@ const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenP
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={loadData}
+            refreshing={loading && !initialLoading}
+            onRefresh={onRefresh}
             tintColor={theme.colors.primary}
           />
         }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="person-outline" size={48} color={theme.colors.textSecondary} />
-            <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-              Aucune prestation trouvée
-            </Text>
-            <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-              Vous n'avez pas encore de prestations pour ce bénéficiaire
-            </Text>
-          </View>
-        )}
+        onEndReached={loadMoreData}
+        onEndReachedThreshold={0.1}
+        ListFooterComponent={() => {
+          if (loading && !initialLoading) {
+            return (
+              <View style={styles.loadingFooter}>
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+                  Chargement...
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        }}
       />
     );
   };
@@ -224,24 +428,20 @@ const PrestationsByBeneficiaireScreen: React.FC<PrestationsByBeneficiaireScreenP
       {/* Content */}
       {initialLoading ? (
         <View style={styles.content}>
-          <LoadingCard 
-            visible={initialLoading} 
-            message="Chargement des prestations..." 
-            height={300}
-          />
+          <View style={styles.loadingContainer}>
+            <View style={[styles.loadingIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Ionicons name="medical-outline" size={48} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.loadingText, { color: theme.colors.textPrimary }]}>
+              Chargement des prestations...
+            </Text>
+          </View>
         </View>
       ) : (
         <View style={styles.content}>
           {renderContent()}
         </View>
       )}
-      
-      {/* Loader overlay */}
-      <Loader 
-        visible={loading && !initialLoading} 
-        message="Mise à jour des données..." 
-        overlay={true}
-      />
 
       {/* Filter Modal */}
       <Modal
@@ -414,6 +614,25 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.7,
   },
   listContainer: {
     paddingHorizontal: 20,
@@ -591,6 +810,84 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',
+  },
+  
+  // Styles pour les états d'erreur et vide
+  errorState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  errorIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyStateIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  emptyStateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyStateButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  
+  loadingFooter: {
+    padding: 20,
+    alignItems: 'center',
   },
 });
 

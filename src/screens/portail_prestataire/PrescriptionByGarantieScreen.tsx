@@ -21,6 +21,7 @@ import Loader, { LoadingCard } from '../../components/Loader';
 import { useModal } from '../../hooks/useModal';
 import CustomModal from '../../components/CustomModal';
 import ApiService from '../../services/ApiService';
+import { GARANTIES_WITH_ALL } from '../../constants/garanties';
 
 interface PrescriptionByGarantieScreenProps {
   navigation: any;
@@ -72,23 +73,6 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const [showDateFinPicker, setShowDateFinPicker] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionItem | null>(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-
-  const garanties = [
-    { code: '', libelle: 'Toutes les garanties' },
-    { code: 'PHARMA', libelle: 'Pharmacie' },
-    { code: 'EXA', libelle: 'Autres examens' },
-    { code: 'AUX', libelle: 'Auxiliaires médicaux' },
-    { code: 'AMP', libelle: 'Assistance médicale à la procréation' },
-    { code: 'BILN', libelle: 'Bilan de santé' },
-    { code: 'BIO', libelle: 'Biologie' },
-    { code: 'CONS', libelle: 'Consultation' },
-    { code: 'DEN', libelle: 'Dentisterie' },
-    { code: 'HOS', libelle: 'Hospitalisation' },
-    { code: 'IMA', libelle: 'Imagerie & examens spécialisés' },
-    { code: 'MAT', libelle: 'Maternité' },
-    { code: 'OPT', libelle: 'Optique' },
-    { code: 'TRA', libelle: 'Transport médicalisé' },
-  ];
 
   const [apiService] = useState(() => new ApiService());
 
@@ -575,7 +559,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                     onPress={() => setShowGarantiePicker(true)}
                   >
                     <Text style={[styles.filterInputText, { color: filters.garantie ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
-                      {filters.garantie ? garanties.find(g => g.code === filters.garantie)?.libelle : 'Sélectionner une garantie'}
+                      {filters.garantie ? GARANTIES_WITH_ALL.find(g => g.code === filters.garantie)?.libelle : 'Sélectionner une garantie'}
                     </Text>
                     <Ionicons name="chevron-down" size={16} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
@@ -665,7 +649,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
               </TouchableOpacity>
             </View>
             <View style={styles.garantiePickerContainer}>
-              {garanties.map((garantie) => (
+              {GARANTIES_WITH_ALL.map((garantie) => (
                 <TouchableOpacity
                   key={garantie.code}
                   style={[

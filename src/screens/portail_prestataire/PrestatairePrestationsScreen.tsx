@@ -58,11 +58,11 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
   const [prestations, setPrestations] = useState<PrestationItem[]>([]);
   const [filteredPrestations, setFilteredPrestations] = useState<PrestationItem[]>([]);
   const [filters, setFilters] = useState<PrestationFilters>({
-    dateDebut: new Date(),
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
     dateFin: new Date()
   });
   const [tempFilters, setTempFilters] = useState<PrestationFilters>({
-    dateDebut: new Date(),
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
     dateFin: new Date()
   });
   const [error, setError] = useState<string | null>(null);
@@ -307,19 +307,27 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
         </View>
       </View>
 
-      {/* Informations patient */}
-      <View style={styles.patientInfo}>
-        <View style={styles.patientRow}>
-          <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
-          <Text style={[styles.patientName, { color: theme.colors.textPrimary }]}>
-            {item.beneficiaire_prenom} {item.beneficiaire_nom}
-          </Text>
-        </View>
-        <View style={styles.patientRow}>
-          <Ionicons name="card-outline" size={16} color={theme.colors.textSecondary} />
-          <Text style={[styles.matriculeText, { color: theme.colors.textSecondary }]}>
-            {item.matricule_assure || 'Non renseigné'}
-          </Text>
+      {/* Informations patient avec nouvelle disposition */}
+      <View style={styles.patientSectionNew}>
+        <View style={styles.patientCardContainer}>
+          <View style={styles.patientCardHeader}>
+            <View style={[styles.patientAvatarNew, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Ionicons name="person" size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.patientInfoContainer}>
+              <Text style={[styles.patientNameNew, { color: theme.colors.textPrimary }]} numberOfLines={2}>
+                {item.beneficiaire_prenom} {item.beneficiaire_nom}
+              </Text>
+              <View style={styles.patientBadgeContainer}>
+                <View style={[styles.patientBadge, { backgroundColor: theme.colors.primary + '10' }]}>
+                  <Ionicons name="card-outline" size={12} color={theme.colors.primary} />
+                  <Text style={[styles.patientBadgeText, { color: theme.colors.primary }]}>
+                    {item.matricule_assure || 'Non renseigné'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -461,6 +469,9 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
       {initialLoading ? (
         <View style={styles.content}>
           <View style={styles.loadingContainer}>
+            <View style={[styles.loadingIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Ionicons name="medical-outline" size={48} color={theme.colors.primary} />
+            </View>
             <Text style={[styles.loadingText, { color: theme.colors.textPrimary }]}>
               Chargement des prestations...
             </Text>
@@ -592,7 +603,7 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
                 style={[styles.filterModalButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
                 onPress={() => {
                   const resetFilters = {
-                    dateDebut: new Date(),
+                    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
                     dateFin: new Date()
                   };
                   setTempFilters(resetFilters);
@@ -607,8 +618,15 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
               <TouchableOpacity
                 style={[styles.filterModalButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => {
+                  console.log('🔄 Application des filtres:', tempFilters);
                   setFilters(tempFilters);
                   setShowFilterModal(false);
+                  // Vider les données avant de recharger
+                  setPrestations([]);
+                  setFilteredPrestations([]);
+                  setCurrentPage(0);
+                  setHasMoreData(true);
+                  setInitialLoading(true); // Réactiver le loading initial
                   loadData(0, true);
                 }}
               >
@@ -839,10 +857,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  loadingText: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.7,
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   emptyState: {
     alignItems: 'center',
@@ -1253,6 +1274,67 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  
+  // Nouvelle disposition pour l'affichage du patient
+  patientSectionNew: {
+    marginVertical: 16,
+  },
+  patientCardContainer: {
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  patientCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  patientAvatarNew: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  patientInfoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  patientNameNew: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+    lineHeight: 22,
+  },
+  patientBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  patientBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
   },
 });
 
