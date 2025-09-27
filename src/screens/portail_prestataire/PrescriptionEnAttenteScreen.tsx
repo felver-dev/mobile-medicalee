@@ -8,8 +8,10 @@ import {
   RefreshControl, 
   FlatList,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
 import { SafeAreaView, Platform } from 'react-native';
@@ -18,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import Loader, { LoadingCard } from '../../components/Loader';
 import { useModal } from '../../hooks/useModal';
 import CustomModal from '../../components/CustomModal';
+import ApiService from '../../services/ApiService';
 
 interface PrescriptionEnAttenteScreenProps {
   navigation: any;
@@ -42,10 +45,9 @@ interface PrescriptionItem {
 }
 
 interface AttenteFilter {
-  priorite: string;
   dateDebut: string;
   dateFin: string;
-  beneficiaire: string;
+  matriculeAssure: string;
 }
 
 const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = ({ navigation }) => {
@@ -56,120 +58,155 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const [filteredPrescriptions, setFilteredPrescriptions] = useState<PrescriptionItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<AttenteFilter>({
-    priorite: '',
     dateDebut: '',
     dateFin: '',
-    beneficiaire: ''
+    matriculeAssure: ''
   });
+  const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
+  const [showDateFinPicker, setShowDateFinPicker] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
-  const priorites = [
-    { code: 'URGENT', libelle: 'Urgent' },
-    { code: 'NORMAL', libelle: 'Normal' },
-    { code: 'FAIBLE', libelle: 'Faible' }
-  ];
+  const [apiService] = useState(() => new ApiService());
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadData();
-    setTimeout(() => {
+    loadData(0, false, filters).finally(() => {
       setRefreshing(false);
-    }, 2000);
-  }, []);
+    });
+  }, [filters]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (page: number = 0, append: boolean = false, currentFilters?: AttenteFilter) => {
+    if (!user) {
+      console.log('❌ Utilisateur non connecté');
+      return;
+    }
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    // Utiliser les filtres passés en paramètre ou les filtres actuels
+    const activeFilters = currentFilters || filters;
+
     try {
-      console.log('🔍 PrescriptionEnAttenteScreen.loadData démarré');
+      console.log('🔍 PrescriptionEnAttenteScreen.loadData démarré - Page:', page);
+      console.log('👤 User:', user);
+      console.log('👤 User ID:', user?.id);
+      console.log('👤 User Filiale ID:', user?.filiale_id);
+      console.log('👤 User Prestataire ID:', user?.prestataire_id);
+      console.log('🔧 Filters:', activeFilters);
 
-      // Données mockées pour les prescriptions en attente
-      const mockPrescriptions: PrescriptionItem[] = [
-        {
-          id: 1,
-          beneficiaire_nom: 'KONAN',
-          beneficiaire_prenom: 'JEAN',
-          beneficiaire_matricule: '25000001',
-          medicament_libelle: 'PARACETAMOL 500MG',
-          quantite: 20,
-          posologie: '1 comprimé 3x/jour',
-          date_prescription: '2024-01-15',
-          statut: 'En attente',
-          garantie_libelle: 'PHARMACIE',
-          montant: 2500,
-          details: 'Traitement de la fièvre',
-          date_demande: '2024-01-15',
-          motif_demande: 'Demande d\'entente préalable',
-          priorite: 'URGENT'
-        },
-        {
-          id: 2,
-          beneficiaire_nom: 'TRAORE',
-          beneficiaire_prenom: 'MARIE',
-          beneficiaire_matricule: '25000002',
-          medicament_libelle: 'AMOXICILLINE 1G',
-          quantite: 14,
-          posologie: '1 comprimé 2x/jour',
-          date_prescription: '2024-01-14',
-          statut: 'En attente',
-          garantie_libelle: 'PHARMACIE',
-          montant: 3500,
-          details: 'Traitement antibiotique',
-          date_demande: '2024-01-14',
-          motif_demande: 'Validation médicale requise',
-          priorite: 'NORMAL'
-        },
-        {
-          id: 3,
-          beneficiaire_nom: 'DIABATE',
-          beneficiaire_prenom: 'PAUL',
-          beneficiaire_matricule: '25000003',
-          medicament_libelle: 'VITAMINE C 1G',
-          quantite: 30,
-          posologie: '1 comprimé/jour',
-          date_prescription: '2024-01-13',
-          statut: 'En attente',
-          garantie_libelle: 'MEDICAL',
-          montant: 1800,
-          details: 'Complément alimentaire',
-          date_demande: '2024-01-13',
-          motif_demande: 'Autorisation préalable',
-          priorite: 'FAIBLE'
+      // Utiliser les dates par défaut si non définies (aujourd'hui)
+      const today = new Date();
+      const dateDebut = activeFilters.dateDebut || today.toISOString().split('T')[0];
+      const dateFin = activeFilters.dateFin || today.toISOString().split('T')[0];
+
+      const apiParams = {
+        userId: Number(user.id),
+        filialeId: user.filiale_id || 1,
+        // Ne pas envoyer matriculeAssure par défaut pour les prescriptions en attente
+        matriculeAssure: activeFilters.matriculeAssure ? Number(activeFilters.matriculeAssure) : undefined,
+        prestataireId: user.prestataire_id || undefined,
+        isEntentePrealable: true, // Spécifique aux prescriptions en attente
+        dateDebut,
+        dateFin,
+        index: page * 20,
+        size: 20,
+      };
+
+      console.log('📦 Paramètres API:', apiParams);
+      console.log('📦 Paramètres API JSON:', JSON.stringify(apiParams, null, 2));
+
+      const response = await apiService.getPrescriptionActeByCriteria(apiParams);
+
+      console.log('✅ Réponse API complète:', response);
+      console.log('📊 Nombre d\'items:', response?.items?.length || 0);
+
+      if (response && response.items) {
+        const prescriptionsData = response.items.map((item: any) => ({
+          id: item.id,
+          beneficiaire_nom: item.beneficiaire_nom || 'Non renseigné',
+          beneficiaire_prenom: item.beneficiaire_prenom || 'Non renseigné',
+          beneficiaire_matricule: item.beneficiaire_matricule || 'Non renseigné',
+          medicament_libelle: item.medicament_libelle || item.libelle || 'Non renseigné',
+          quantite: item.quantite || 0,
+          posologie: item.posologie || 'Non renseigné',
+          date_prescription: item.date_prescription || item.created_at,
+          statut: item.statut || 'En attente',
+          garantie_libelle: item.garantie_libelle || 'Non renseigné',
+          montant: item.montant,
+          details: item.details || 'Non renseigné',
+          date_demande: item.date_demande || item.created_at,
+          motif_demande: item.motif_demande || 'Demande d\'entente préalable',
+          priorite: item.priorite || 'NORMAL'
+        }));
+
+        if (append) {
+          setPrescriptions(prev => [...prev, ...prescriptionsData]);
+          setFilteredPrescriptions(prev => [...prev, ...prescriptionsData]);
+        } else {
+          setPrescriptions(prescriptionsData);
+          setFilteredPrescriptions(prescriptionsData);
         }
-      ];
 
-      setPrescriptions(mockPrescriptions);
-      setFilteredPrescriptions(mockPrescriptions);
-      console.log('✅ Données mockées chargées:', mockPrescriptions.length);
+        // Vérifier s'il y a plus de données
+        setHasMoreData(prescriptionsData.length === 20);
+        setCurrentPage(page);
+        
+        console.log('✅ Prescriptions en attente chargées:', prescriptionsData.length, 'Total:', append ? prescriptions.length + prescriptionsData.length : prescriptionsData.length);
+        console.log('📋 Première prescription:', prescriptionsData[0]);
+      } else {
+        if (!append) {
+          setPrescriptions([]);
+          setFilteredPrescriptions([]);
+        }
+        setHasMoreData(false);
+        console.log('⚠️ Aucune prescription en attente trouvée - Response:', response);
+        console.log('⚠️ Response.items:', response?.items);
+      }
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des prescriptions:', error);
-      showAlert('Erreur', 'Impossible de charger les prescriptions', 'error');
+      console.error('❌ Erreur lors du chargement des prescriptions en attente:', error);
+      if (!append) {
+        setPrescriptions([]);
+        setFilteredPrescriptions([]);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setInitialLoading(false);
     }
   };
 
+  const loadDataCallback = useCallback(loadData, [user, apiService]);
+
   useEffect(() => {
-    loadData();
+    if (user) {
+      loadDataCallback(0, false);
+    }
+  }, [user, loadDataCallback]);
+
+  // Initialiser les dates par défaut (aujourd'hui)
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setFilters(prev => ({
+      ...prev,
+      dateDebut: prev.dateDebut || today,
+      dateFin: prev.dateFin || today
+    }));
   }, []);
 
   // Filtrer les prescriptions
   useEffect(() => {
     let filtered = prescriptions;
-
-    if (filters.priorite) {
-      filtered = filtered.filter(p => p.priorite?.toLowerCase().includes(filters.priorite.toLowerCase()));
-    }
-
-    if (filters.beneficiaire) {
-      filtered = filtered.filter(p => 
-        p.beneficiaire_nom.toLowerCase().includes(filters.beneficiaire.toLowerCase()) ||
-        p.beneficiaire_prenom.toLowerCase().includes(filters.beneficiaire.toLowerCase()) ||
-        p.beneficiaire_matricule.includes(filters.beneficiaire)
-      );
-    }
 
     if (filters.dateDebut) {
       filtered = filtered.filter(p => p.date_prescription >= filters.dateDebut);
@@ -186,12 +223,27 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleDateDebutChange = (event: any, selectedDate?: Date) => {
+    setShowDateDebutPicker(false);
+    if (selectedDate) {
+      const dateString = selectedDate.toISOString().split('T')[0];
+      setFilters(prev => ({ ...prev, dateDebut: dateString }));
+    }
+  };
+
+  const handleDateFinChange = (event: any, selectedDate?: Date) => {
+    setShowDateFinPicker(false);
+    if (selectedDate) {
+      const dateString = selectedDate.toISOString().split('T')[0];
+      setFilters(prev => ({ ...prev, dateFin: dateString }));
+    }
+  };
+
   const clearFilters = () => {
     setFilters({
-      priorite: '',
       dateDebut: '',
       dateFin: '',
-      beneficiaire: ''
+      matriculeAssure: ''
     });
   };
 
@@ -261,14 +313,17 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
   };
 
   const formatAmount = (amount?: number) => {
-    if (!amount) return 'N/A';
+    if (!amount) return 'Non renseigné';
     return `${amount.toLocaleString('fr-FR')} FCFA`;
   };
 
   const renderPrescription = ({ item }: { item: PrescriptionItem }) => (
     <TouchableOpacity 
       style={[styles.prescriptionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-      onPress={() => console.log('Voir détails prescription:', item.id)}
+      onPress={() => {
+        setSelectedPrescription(item);
+        setShowPrescriptionModal(true);
+      }}
     >
       {/* Header */}
       <View style={[styles.prescriptionHeader, { borderBottomColor: theme.colors.border }]}>
@@ -396,90 +451,35 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
 
     return (
       <View style={styles.content}>
-        {/* Header avec filtres */}
+        {/* Header simple et propre */}
         <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          <View style={styles.topBar}>
+          <View style={styles.headerContent}>
             <TouchableOpacity 
-              style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+              style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <Ionicons name="arrow-back" size={20} color="white" />
+              <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Prescriptions en Attente</Text>
+            
+            <View style={styles.titleContainer}>
+              <Text style={styles.headerTitle}>Prescriptions en Attente</Text>
+              <Text style={styles.headerSubtitle}>
+                {filteredPrescriptions.length} prescription{filteredPrescriptions.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            
             <TouchableOpacity 
-              style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-              onPress={() => setShowFilters(!showFilters)}
+              style={styles.filterButton}
+              onPress={() => setShowFilters(true)}
             >
-              <Ionicons name="filter-outline" size={20} color="white" />
+              <Ionicons name="filter" size={24} color="white" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Filtres */}
-        {showFilters && (
-          <View style={[styles.filtersContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.filtersHeader}>
-              <Text style={[styles.filtersTitle, { color: theme.colors.textPrimary }]}>Filtres</Text>
-              <TouchableOpacity onPress={clearFilters}>
-                <Text style={[styles.clearFiltersText, { color: theme.colors.primary }]}>Effacer</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.filtersGrid}>
-              <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Priorité</Text>
-                <TextInput
-                  style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                  placeholder="Toutes les priorités"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.priorite}
-                  onChangeText={(text) => handleFilterChange('priorite', text)}
-                />
-              </View>
-
-              <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Bénéficiaire</Text>
-                <TextInput
-                  style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                  placeholder="Nom, prénom ou matricule"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.beneficiaire}
-                  onChangeText={(text) => handleFilterChange('beneficiaire', text)}
-                />
-              </View>
-
-              <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date début</Text>
-                <TextInput
-                  style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.dateDebut}
-                  onChangeText={(text) => handleFilterChange('dateDebut', text)}
-                />
-              </View>
-
-              <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date fin</Text>
-                <TextInput
-                  style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.dateFin}
-                  onChangeText={(text) => handleFilterChange('dateFin', text)}
-                />
-              </View>
-            </View>
-          </View>
-        )}
-
         {/* Liste des prescriptions */}
         <View style={styles.listContainer}>
-          <View style={styles.listHeader}>
-            <Text style={[styles.listTitle, { color: theme.colors.textPrimary }]}>
-              Prescriptions en attente ({filteredPrescriptions.length})
-            </Text>
-          </View>
+          <View style={styles.spacer} />
 
           {filteredPrescriptions.length === 0 ? (
             <View style={styles.emptyState}>
@@ -488,7 +488,7 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
                 Aucune prescription en attente
               </Text>
               <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-                {filters.priorite || filters.beneficiaire || filters.dateDebut || filters.dateFin 
+                {filters.matriculeAssure || filters.dateDebut || filters.dateFin 
                   ? 'Essayez de modifier vos filtres' 
                   : 'Aucune prescription en attente pour le moment'}
               </Text>
@@ -508,6 +508,25 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
               }
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              onEndReached={() => {
+                if (hasMoreData && !loadingMore) {
+                  loadData(currentPage + 1, true, filters);
+                }
+              }}
+              onEndReachedThreshold={0.1}
+              ListFooterComponent={() => {
+                if (loadingMore) {
+                  return (
+                    <View style={styles.loadingMoreContainer}>
+                      <ActivityIndicator size="small" color={theme.colors.primary} />
+                      <Text style={[styles.loadingMoreText, { color: theme.colors.textSecondary }]}>
+                        Chargement...
+                      </Text>
+                    </View>
+                  );
+                }
+                return null;
+              }}
             />
           )}
         </View>
@@ -532,6 +551,191 @@ const PrescriptionEnAttenteScreen: React.FC<PrescriptionEnAttenteScreenProps> = 
 
       {/* Custom Modal */}
       <CustomModal {...modalState} />
+
+      {/* Filtres Modal */}
+      <Modal
+        visible={showFilters}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.filterModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.filterModalTitle, { color: theme.colors.textPrimary }]}>
+                Filtres de recherche
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowFilters(false)}
+                style={styles.filterModalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.filtersGrid}>
+                <View style={styles.filterItem}>
+                  <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Matricule Assuré</Text>
+                  <TextInput
+                    style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
+                    placeholder="Matricule de l'assuré"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={filters.matriculeAssure}
+                    onChangeText={(text) => handleFilterChange('matriculeAssure', text)}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+
+                <View style={styles.filterItem}>
+                  <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date début</Text>
+                  <TouchableOpacity
+                    style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                    onPress={() => setShowDateDebutPicker(true)}
+                  >
+                    <Text style={[styles.filterInputText, { color: filters.dateDebut ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
+                      {filters.dateDebut || 'Sélectionner une date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.filterItem}>
+                  <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date fin</Text>
+                  <TouchableOpacity
+                    style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                    onPress={() => setShowDateFinPicker(true)}
+                  >
+                    <Text style={[styles.filterInputText, { color: filters.dateFin ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
+                      {filters.dateFin || 'Sélectionner une date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={[styles.modalFooter, { borderTopColor: theme.colors.border }]}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                onPress={clearFilters}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Effacer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => {
+                  loadData(0, false, filters);
+                  setShowFilters(false);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: 'white' }]}>Rechercher</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Pickers */}
+      {showDateDebutPicker && (
+        <DateTimePicker
+          value={filters.dateDebut ? new Date(filters.dateDebut) : new Date()}
+          mode="date"
+          display="default"
+          onChange={handleDateDebutChange}
+        />
+      )}
+
+      {showDateFinPicker && (
+        <DateTimePicker
+          value={filters.dateFin ? new Date(filters.dateFin) : new Date()}
+          mode="date"
+          display="default"
+          onChange={handleDateFinChange}
+        />
+      )}
+
+      {/* Modal de détails de prescription */}
+      <Modal
+        visible={showPrescriptionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPrescriptionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.prescriptionModalContent, { backgroundColor: theme.colors.surface }]}>
+            {/* Header moderne */}
+            <View style={[styles.prescriptionModalHeader, { backgroundColor: theme.colors.primary }]}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={styles.modalIconContainer}>
+                    <Ionicons name="medical" size={24} color="white" />
+                  </View>
+                  <View>
+                    <Text style={styles.prescriptionModalTitle}>Détails de la prescription</Text>
+                    {selectedPrescription && (
+                      <Text style={styles.modalSubtitle}>
+                        #{selectedPrescription.id} • {selectedPrescription.beneficiaire_prenom} {selectedPrescription.beneficiaire_nom}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowPrescriptionModal(false)}
+                  style={styles.filterModalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.prescriptionModalBody}>
+              {selectedPrescription && (
+                <View style={styles.prescriptionDetails}>
+                  {/* Détails du médicament directement */}
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Médicament</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.medicament_libelle}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Quantité</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.quantite}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Posologie</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                      {selectedPrescription.posologie}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.infoItem}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Montant</Text>
+                    <Text style={[styles.infoValue, { color: theme.colors.primary, fontWeight: '600' }]}>
+                      {formatAmount(selectedPrescription.montant)}
+                    </Text>
+                  </View>
+                  
+                  {selectedPrescription.details && selectedPrescription.details !== 'Non renseigné' && (
+                    <View style={styles.infoItem}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Détails</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrescription.details}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -544,33 +748,184 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 32,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 20,
+    paddingVertical: 32,
+    minHeight: 120,
   },
-  topBar: {
+  headerContent: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    paddingBottom: 16,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: 2,
   },
   filterButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  spacer: {
+    height: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Styles pour le modal de détails de prescription
+  prescriptionModalContent: {
+    maxHeight: '80%',
+    width: '90%',
+    margin: 20,
+    marginTop: 50,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  prescriptionModalHeader: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+  },
+  modalHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prescriptionModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  prescriptionModalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  prescriptionModalBody: {
+    padding: 20,
+  },
+  prescriptionDetails: {
+    // Supprimé flex: 1 pour éviter l'étirement
+  },
+  infoItem: {
+    marginBottom: 16,
+  },
+  infoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    width: '90%',
+    marginHorizontal: 20,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+  },
+  filterModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  filterModalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   filtersContainer: {
     margin: 20,
@@ -579,16 +934,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filtersHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 16,
   },
   filtersTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 12,
   },
-  clearFiltersText: {
+  filtersHeaderButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  searchButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  clearButtonText: {
     fontSize: 14,
     fontWeight: '500',
   },
@@ -608,6 +984,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterInputText: {
+    fontSize: 14,
+    flex: 1,
   },
   listContainer: {
     flex: 1,
@@ -622,6 +1005,17 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   prescriptionCard: {
     borderRadius: 12,

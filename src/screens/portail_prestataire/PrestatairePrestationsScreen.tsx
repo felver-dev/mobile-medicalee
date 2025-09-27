@@ -3,22 +3,22 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  ScrollView, 
   TouchableOpacity, 
   RefreshControl, 
   FlatList,
   Modal,
-  TextInput 
+  TextInput,
+  Dimensions,
+  ScrollView,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
-import { SafeAreaView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { usePrestataireTheme } from '../../context/PrestataireThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import Loader, { LoadingCard, LoadingList, LoadingModal } from '../../components/Loader';
-import { DependencyContainer } from '../../core/di/DependencyContainer';
-import { useModal } from '../../hooks/useModal';
-import CustomModal from '../../components/CustomModal';
+import ApiService from '../../services/ApiService';
 
 interface PrestatairePrestationsScreenProps {
   navigation: any;
@@ -26,211 +26,229 @@ interface PrestatairePrestationsScreenProps {
 
 interface PrestationItem {
   id: number;
-  nom_beneficiaire: string;
-  prenom_beneficiaire: string;
+  beneficiaire_nom: string;
+  beneficiaire_prenom: string;
   matricule_assure: number;
-  type_prestation: string;
+  acte_libelle: string;
   montant: number;
-  date_prestation: string;
-  statut: string;
+  created_at: string;
+  garantie_libelle: string;
   prestataire_libelle: string;
-  details?: string;
+  part_patient: number;
+  part_assurance: number;
+  quantite: number;
+  prix_unitaire: number;
 }
 
-interface PrestationFilter {
-  statut: string;
-  type: string;
-  dateDebut: string;
-  dateFin: string;
+interface PrestationFilters {
+  dateDebut: Date;
+  dateFin: Date;
 }
+
+const { width } = Dimensions.get('window');
 
 const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
-  const { modalState, showAlert } = useModal();
   const { theme } = usePrestataireTheme();
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'validated' | 'rejected'>('all');
-  const [prestations, setPrestations] = useState<PrestationItem[]>([]);
-  const [filteredPrestations, setFilteredPrestations] = useState<PrestationItem[]>([]);
-  const [selectedPrestation, setSelectedPrestation] = useState<PrestationItem | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filters, setFilters] = useState<PrestationFilter>({
-    statut: '',
-    type: '',
-    dateDebut: '',
-    dateFin: ''
-  });
+  const [apiService] = useState(() => new ApiService());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [modalLoading, setModalLoading] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [prestations, setPrestations] = useState<PrestationItem[]>([]);
+  const [filteredPrestations, setFilteredPrestations] = useState<PrestationItem[]>([]);
+  const [filters, setFilters] = useState<PrestationFilters>({
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
+    dateFin: new Date()
+  });
+  const [tempFilters, setTempFilters] = useState<PrestationFilters>({
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
+    dateFin: new Date()
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
+  const [showDateFinPicker, setShowDateFinPicker] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [selectedPrestation, setSelectedPrestation] = useState<PrestationItem | null>(null);
+  const [showPrestationModal, setShowPrestationModal] = useState(false);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadData();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
+  const prestationOptions = [
+    {
+      id: 'garanties',
+      title: 'Par Garanties',
+      subtitle: 'Voir par type de garantie',
+      icon: 'shield-checkmark-outline',
+      color: '#4CAF50',
+      bgColor: '#E8F5E8',
+      route: 'PrestationsByGarantie'
+    },
+    {
+      id: 'famille',
+      title: 'Par Famille',
+      subtitle: 'Consulter par famille',
+      icon: 'people-outline',
+      color: '#2196F3',
+      bgColor: '#E3F2FD',
+      route: 'PrestationsByFamille'
+    }
+  ];
 
-  const loadData = async () => {
+  const handleOptionPress = (route: string) => {
+    console.log('Navigation vers:', route);
+    setShowMenuModal(false);
+    navigation.navigate(route);
+  };
+
+  const handleDateDebutChange = (event: any, selectedDate?: Date) => {
+    setShowDateDebutPicker(false);
+    if (selectedDate) {
+      setTempFilters({...tempFilters, dateDebut: selectedDate});
+    }
+  };
+
+  const handleDateFinChange = (event: any, selectedDate?: Date) => {
+    setShowDateFinPicker(false);
+    if (selectedDate) {
+      setTempFilters({...tempFilters, dateFin: selectedDate});
+    }
+  };
+
+  const formatDateForDisplay = (date: Date) => {
+    return date.toLocaleDateString('fr-FR');
+  };
+
+  const openFilterModal = () => {
+    setTempFilters(filters);
+    setShowFilterModal(true);
+  };
+
+  const openPrestationModal = (prestation: PrestationItem) => {
+    setSelectedPrestation(prestation);
+    setShowPrestationModal(true);
+  };
+
+  const loadData = useCallback(async (page: number = 0, reset: boolean = true) => {
     setLoading(true);
+    setError(null);
+    
+    if (reset) {
+      setCurrentPage(0);
+      setHasMoreData(true);
+    }
+    
     try {
-      console.log('🔍 PrestatairePrestationsScreen.loadData démarré avec données mockées');
-
-      // Données mockées pour les prestations
-      const mockPrestations: PrestationItem[] = [
-        {
-          id: 1,
-          nom_beneficiaire: 'DIABATE',
-          prenom_beneficiaire: 'Fatou',
-          matricule_assure: 123456,
-          type_prestation: 'Consultation',
-          montant: 15000,
-          date_prestation: '2024-01-15',
-          statut: 'validée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Consultation générale avec prescription de médicaments'
-        },
-        {
-          id: 2,
-          nom_beneficiaire: 'TRAORE',
-          prenom_beneficiaire: 'Moussa',
-          matricule_assure: 123457,
-          type_prestation: 'Médicaments',
-          montant: 25000,
-          date_prestation: '2024-01-14',
-          statut: 'en attente',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Prescription de médicaments pour traitement du diabète'
-        },
-        {
-          id: 3,
-          nom_beneficiaire: 'KONE',
-          prenom_beneficiaire: 'Aminata',
-          matricule_assure: 123458,
-          type_prestation: 'Consultation',
-          montant: 12000,
-          date_prestation: '2024-01-13',
-          statut: 'validée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Consultation de suivi post-opératoire'
-        },
-        {
-          id: 4,
-          nom_beneficiaire: 'SANGARE',
-          prenom_beneficiaire: 'Boubacar',
-          matricule_assure: 123459,
-          type_prestation: 'Médicaments',
-          montant: 18000,
-          date_prestation: '2024-01-12',
-          statut: 'rejetée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Prescription rejetée - médicament non remboursable'
-        },
-        {
-          id: 5,
-          nom_beneficiaire: 'OUATTARA',
-          prenom_beneficiaire: 'Kadidia',
-          matricule_assure: 123460,
-          type_prestation: 'Consultation',
-          montant: 20000,
-          date_prestation: '2024-01-11',
-          statut: 'validée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Consultation spécialisée en cardiologie'
-        },
-        {
-          id: 6,
-          nom_beneficiaire: 'COULIBALY',
-          prenom_beneficiaire: 'Ibrahim',
-          matricule_assure: 123461,
-          type_prestation: 'Médicaments',
-          montant: 30000,
-          date_prestation: '2024-01-10',
-          statut: 'en attente',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Prescription de médicaments pour traitement chronique'
-        },
-        {
-          id: 7,
-          nom_beneficiaire: 'DIALLO',
-          prenom_beneficiaire: 'Mariam',
-          matricule_assure: 123462,
-          type_prestation: 'Consultation',
-          montant: 18000,
-          date_prestation: '2024-01-09',
-          statut: 'validée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Consultation de contrôle de grossesse'
-        },
-        {
-          id: 8,
-          nom_beneficiaire: 'BA',
-          prenom_beneficiaire: 'Ousmane',
-          matricule_assure: 123463,
-          type_prestation: 'Médicaments',
-          montant: 22000,
-          date_prestation: '2024-01-08',
-          statut: 'rejetée',
-          prestataire_libelle: 'CLINIQUE LA PROVIDENCE',
-          details: 'Prescription rejetée - dépassement du plafond'
-        }
-      ];
-
-      // Simuler un délai de chargement
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔍 PrestatairePrestationsScreen.loadData démarré - Page:', page);
       
-      setPrestations(mockPrestations);
-      setFilteredPrestations(mockPrestations);
+      if (!user) {
+        console.log('❌ Utilisateur non connecté');
+        setError('Utilisateur non connecté');
+        return;
+      }
 
-      console.log('✅ Chargement des prestations mockées terminé avec succès');
+      const payload = {
+        user_id: user.id,
+        filiale_id: user.filiale_id,
+        date_debut: `${filters.dateDebut.toISOString().split('T')[0]}T00:00:00.000Z`,
+        date_fin: `${filters.dateFin.toISOString().split('T')[0]}T23:59:59.999Z`,
+        data: {
+          prestataire_id: user.prestataire_id || user.id
+        },
+        index: page * 10,
+        size: 10
+      };
 
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement des prestations:', error);
-      showAlert('Erreur', 'Impossible de charger les prestations', 'error');
+      console.log('📤 Payload API:', JSON.stringify(payload, null, 2));
+
+      const response = await apiService.getPrestations(payload);
+      
+      console.log('📥 Réponse API complète:', {
+        hasError: response.hasError,
+        itemsLength: response.items?.length || 0,
+        total: response.total,
+        page: page,
+        payload: payload
+      });
+      
+      if (response && !response.hasError && response.items) {
+        console.log('📥 Données reçues:', {
+          itemsCount: response.items.length,
+          totalItems: response.total || 'Non spécifié',
+          currentPage: page,
+          hasMoreData: response.items.length === 10,
+          nextPageWillBe: page + 1,
+          nextPageIndex: (page + 1) * 10
+        });
+        
+        if (reset) {
+          setPrestations(response.items);
+          setFilteredPrestations(response.items);
+        } else {
+          setPrestations(prev => [...prev, ...response.items]);
+          setFilteredPrestations(prev => [...prev, ...response.items]);
+        }
+        
+        // Vérifier s'il y a plus de données
+        // Si nous recevons moins de 10 éléments, c'est la dernière page
+        // Si nous recevons exactement 10 éléments, il pourrait y avoir plus de données
+        setHasMoreData(response.items.length === 10);
+        setCurrentPage(page);
+        setError(null);
+      } else {
+        console.log('⚠️ Aucune donnée reçue ou erreur dans la réponse');
+        if (reset) {
+          setPrestations([]);
+          setFilteredPrestations([]);
+        }
+        setHasMoreData(false);
+        setError(null);
+      }
+
+      console.log('✅ Chargement des prestations terminé');
+
+    } catch (error: any) {
+      console.log('⚠️ Erreur API:', error?.code || 'Erreur inconnue');
+      
+      // Gestion des erreurs spécifiques
+      if (error?.code === '404') {
+        setError('Aucune prestation trouvée pour cette période');
+      } else if (error?.code === '401') {
+        setError('Session expirée, veuillez vous reconnecter');
+      } else if (error?.code === '500') {
+        setError('Erreur serveur, veuillez réessayer plus tard');
+      } else {
+        setError('Impossible de charger les prestations');
+      }
+      
+      if (reset) {
+        setPrestations([]);
+        setFilteredPrestations([]);
+      }
+      setHasMoreData(false);
     } finally {
       setLoading(false);
       setInitialLoading(false);
     }
-  };
+  }, [user, filters, apiService]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(0, true);
+  }, [loadData]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [activeTab, filters, prestations]);
-
-  const applyFilters = () => {
-    let filtered = [...prestations];
-
-    // Filtre par onglet
-    switch (activeTab) {
-      case 'pending':
-        filtered = filtered.filter(p => p.statut.toLowerCase().includes('attente'));
-        break;
-      case 'validated':
-        filtered = filtered.filter(p => p.statut.toLowerCase().includes('validé'));
-        break;
-      case 'rejected':
-        filtered = filtered.filter(p => p.statut.toLowerCase().includes('rejeté'));
-        break;
-      default:
-        break;
+  const loadMoreData = useCallback(() => {
+    console.log('🔄 loadMoreData appelé - loading:', loading, 'hasMoreData:', hasMoreData, 'currentPage:', currentPage);
+    console.log('📊 État actuel - prestations:', prestations.length, 'filteredPrestations:', filteredPrestations.length);
+    if (!loading && hasMoreData) {
+      console.log('📥 Chargement de la page suivante:', currentPage + 1);
+      loadData(currentPage + 1, false);
+    } else {
+      console.log('⏹️ Chargement arrêté - loading:', loading, 'hasMoreData:', hasMoreData);
     }
+  }, [loading, hasMoreData, currentPage, loadData, prestations.length, filteredPrestations.length]);
 
-    // Filtres additionnels
-    if (filters.statut) {
-      filtered = filtered.filter(p => p.statut.toLowerCase().includes(filters.statut.toLowerCase()));
-    }
-    if (filters.type) {
-      filtered = filtered.filter(p => p.type_prestation.toLowerCase().includes(filters.type.toLowerCase()));
-    }
-
-    setFilteredPrestations(filtered);
-  };
+  const onRefresh = useCallback(() => {
+    loadData(0, true);
+  }, [loadData]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -244,60 +262,99 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
     }).format(amount);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'validée':
-        return '#3d8f9d';
-      case 'en attente':
-        return '#FF9800';
-      case 'rejetée':
-        return '#F44336';
-      default:
-        return '#666666';
+  const getStatusColor = (item: PrestationItem) => {
+    // Déterminer le statut basé sur les données disponibles
+    if (item.part_assurance > 0) {
+      return '#3d8f9d'; // Validée
+    } else if (item.montant > 0 && item.part_assurance === 0) {
+      return '#FF9800'; // En attente
+    } else {
+      return '#666666'; // Autre
     }
   };
 
-  const handlePrestationPress = (prestation: PrestationItem) => {
-    setSelectedPrestation(prestation);
-    setShowDetailsModal(true);
+  const getStatusText = (item: PrestationItem) => {
+    if (item.part_assurance > 0) {
+      return 'Validée';
+    } else if (item.montant > 0 && item.part_assurance === 0) {
+      return 'En attente';
+    } else {
+      return 'Non définie';
+    }
   };
 
   const renderPrestationItem = ({ item }: { item: PrestationItem }) => (
     <TouchableOpacity 
-      style={[styles.prestationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[styles.prestationCardModern, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
-      onPress={() => handlePrestationPress(item)}
+      onPress={() => openPrestationModal(item)}
     >
-      <View style={styles.prestationContent}>
-        <View style={styles.prestationLeft}>
-          <View style={[styles.prestationIcon, { backgroundColor: getStatusColor(item.statut) + '15' }]}>
+      {/* Header moderne avec gradient */}
+      <View style={[styles.cardHeaderModern, { backgroundColor: theme.colors.primary + '08' }]}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.iconContainerModern, { backgroundColor: theme.colors.primary }]}>
             <Ionicons 
-              name={item.type_prestation === 'Consultation' ? 'medical-outline' : 'flask-outline'} 
-              size={22} 
-              color={getStatusColor(item.statut)} 
+              name={item.acte_libelle?.includes('CONSULTATION') ? 'medical' : 'flask'} 
+              size={24} 
+              color="white" 
             />
           </View>
-          <View style={styles.prestationInfo}>
-            <Text style={[styles.patientName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.prenom_beneficiaire} {item.nom_beneficiaire}
+          <View style={styles.headerInfo}>
+            <Text style={[styles.cardTitleModern, { color: theme.colors.textPrimary }]} numberOfLines={2}>
+              {item.acte_libelle || 'Non renseigné'}
             </Text>
-            <Text style={[styles.prestationType, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.type_prestation}
+            <View style={styles.dateContainer}>
+              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.dateTextModern, { color: theme.colors.textSecondary }]}>
+                {formatDate(item.created_at)}
             </Text>
-            <Text style={[styles.prestationDate, { color: theme.colors.textSecondary }]}>
-              {formatDate(item.date_prestation)}
+            </View>
+          </View>
+        </View>
+        <View style={[styles.statusBadgeModern, { backgroundColor: getStatusColor(item) }]}>
+          <Text style={styles.statusTextModern}>{getStatusText(item)}</Text>
+        </View>
+      </View>
+
+      {/* Section patient moderne */}
+      <View style={styles.patientSectionModern}>
+        <View style={styles.patientRow}>
+          <View style={[styles.patientIconContainer, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="person" size={18} color={theme.colors.primary} />
+          </View>
+          <View style={styles.patientInfoModern}>
+            <Text style={[styles.patientNameModern, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.beneficiaire_prenom} {item.beneficiaire_nom}
             </Text>
-            <Text style={[styles.matriculeText, { color: theme.colors.textSecondary }]}>
-              Matricule: {item.matricule_assure}
+            <Text style={[styles.patientMatriculeModern, { color: theme.colors.textSecondary }]}>
+              Matricule: {item.matricule_assure || 'Non renseigné'}
             </Text>
           </View>
         </View>
-        <View style={styles.prestationRight}>
-          <Text style={[styles.amountText, { color: theme.colors.textPrimary }]}>
+      </View>
+
+      {/* Section montants moderne */}
+      <View style={styles.amountsSectionModern}>
+        <View style={styles.amountRowModern}>
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Total</Text>
+            <Text style={[styles.amountValueModern, { color: theme.colors.textPrimary }]}>
             {formatAmount(item.montant)}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut) }]}>
-            <Text style={styles.statusText}>{item.statut}</Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Assurance</Text>
+            <Text style={[styles.amountValueModern, { color: '#3d8f9d' }]}>
+              {formatAmount(item.part_assurance)}
+            </Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Patient</Text>
+            <Text style={[styles.amountValueModern, { color: '#FF9800' }]}>
+              {formatAmount(item.part_patient)}
+            </Text>
           </View>
         </View>
       </View>
@@ -305,6 +362,52 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
   );
 
   const renderContent = () => {
+    if (error) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyStateIcon, { backgroundColor: '#FF6B6B15' }]}>
+            <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
+          </View>
+          <Text style={[styles.emptyStateTitle, { color: '#FF6B6B' }]}>
+            Erreur de chargement
+          </Text>
+          <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+            {error}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => loadData(0, true)}
+          >
+            <Ionicons name="refresh-outline" size={20} color="white" />
+            <Text style={[styles.retryButtonText, { color: 'white' }]}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (filteredPrestations.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyStateIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="medical-outline" size={48} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.emptyStateTitle, { color: '#2D3748' }]}>
+            Aucune prestation trouvée
+          </Text>
+          <Text style={[styles.emptyStateText, { color: '#718096' }]}>
+            Aucune prestation pour la période sélectionnée
+          </Text>
+          <TouchableOpacity 
+            style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+            onPress={openFilterModal}
+          >
+            <Ionicons name="filter-outline" size={20} color="white" />
+            <Text style={[styles.emptyStateButtonText, { color: 'white' }]}>Modifier les filtres</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <FlatList
         data={filteredPrestations}
@@ -314,24 +417,25 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={loading}
             onRefresh={onRefresh}
             tintColor={theme.colors.primary}
           />
         }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="medical-outline" size={48} color={theme.colors.textSecondary} />
-            <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-              Aucune prestation trouvée
-            </Text>
-            <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-              {activeTab === 'all' ? 'Vous n\'avez pas encore de prestations' : 
-               `Aucune prestation ${activeTab === 'pending' ? 'en attente' : 
-                activeTab === 'validated' ? 'validée' : 'rejetée'}`}
+        onEndReached={loadMoreData}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => {
+          if (loading && !initialLoading) {
+            return (
+              <View style={styles.loadingFooter}>
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+                  Chargement...
             </Text>
           </View>
-        )}
+            );
+          }
+          return null;
+        }}
       />
     );
   };
@@ -346,102 +450,38 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
       <View style={[styles.header, { backgroundColor: theme.colors.primary, paddingTop: headerTopPadding }]}>
         <View style={styles.topBar}>
           <TouchableOpacity 
-            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            onPress={() => navigation.openDrawer?.()}
-          >
-            <Ionicons name="menu-outline" size={20} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mes Prestations</Text>
-          <TouchableOpacity 
-            style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            onPress={() => setShowFilterModal(true)}
+            style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+            onPress={openFilterModal}
           >
             <Ionicons name="filter-outline" size={20} color="white" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Mes Prestations</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredPrestations.length} prestation{filteredPrestations.length > 1 ? 's' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+            onPress={() => setShowMenuModal(true)}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Tabs */}
-      <View style={[styles.tabsContainer, { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsScrollContent}
-        >
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'all' && { backgroundColor: theme.colors.primaryLight }
-            ]}
-            onPress={() => setActiveTab('all')}
-          >
-            <Ionicons name="list-outline" size={18} color={activeTab === 'all' ? theme.colors.primary : theme.colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'all' ? theme.colors.primary : theme.colors.textSecondary }
-            ]}>
-              Toutes ({prestations.length})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'pending' && { backgroundColor: theme.colors.primaryLight }
-            ]}
-            onPress={() => setActiveTab('pending')}
-          >
-            <Ionicons name="time-outline" size={18} color={activeTab === 'pending' ? theme.colors.primary : theme.colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'pending' ? theme.colors.primary : theme.colors.textSecondary }
-            ]}>
-              En attente ({prestations.filter(p => p.statut.toLowerCase().includes('attente')).length})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'validated' && { backgroundColor: theme.colors.primaryLight }
-            ]}
-            onPress={() => setActiveTab('validated')}
-          >
-            <Ionicons name="checkmark-circle-outline" size={18} color={activeTab === 'validated' ? theme.colors.primary : theme.colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'validated' ? theme.colors.primary : theme.colors.textSecondary }
-            ]}>
-              Validées ({prestations.filter(p => p.statut.toLowerCase().includes('validé')).length})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'rejected' && { backgroundColor: theme.colors.primaryLight }
-            ]}
-            onPress={() => setActiveTab('rejected')}
-          >
-            <Ionicons name="close-circle-outline" size={18} color={activeTab === 'rejected' ? theme.colors.primary : theme.colors.textSecondary} />
-            <Text style={[
-              styles.tabText,
-              { color: activeTab === 'rejected' ? theme.colors.primary : theme.colors.textSecondary }
-            ]}>
-              Rejetées ({prestations.filter(p => p.statut.toLowerCase().includes('rejeté')).length})
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
 
       {/* Content */}
       {initialLoading ? (
         <View style={styles.content}>
-          <LoadingCard 
-            visible={initialLoading} 
-            message="Chargement des prestations..." 
-            height={300}
-          />
+          <View style={styles.loadingContainer}>
+            <View style={[styles.loadingIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Ionicons name="medical-outline" size={48} color={theme.colors.primary} />
+            </View>
+            <Text style={[styles.loadingText, { color: theme.colors.textPrimary }]}>
+              Chargement des prestations...
+            </Text>
+          </View>
         </View>
       ) : (
         <View style={styles.content}>
@@ -449,81 +489,325 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
         </View>
       )}
       
-      {/* Loader overlay */}
-      <Loader 
-        visible={loading && !initialLoading} 
-        message="Mise à jour des données..." 
-        overlay={true}
-      />
 
-      {/* Details Modal */}
+      {/* Menu Modal */}
       <Modal
-        visible={showDetailsModal}
+        visible={showMenuModal}
+        transparent={true}
         animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowDetailsModal(false)}
+        onRequestClose={() => setShowMenuModal(false)}
       >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme.colors.primary }]}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                Options de prestations
+              </Text>
+          <TouchableOpacity
+                onPress={() => setShowMenuModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+            </View>
+          
+            <View style={styles.menuOptions}>
+              {prestationOptions.map((option) => (
+          <TouchableOpacity
+                  key={option.id}
+                  style={[styles.menuOption, { borderBottomColor: theme.colors.border }]}
+                  onPress={() => handleOptionPress(option.route)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuOptionIcon, { backgroundColor: option.bgColor }]}>
+                    <Ionicons name={option.icon as any} size={20} color={option.color} />
+                  </View>
+                  <View style={styles.menuOptionContent}>
+                    <Text style={[styles.menuOptionTitle, { color: theme.colors.textPrimary }]}>
+                      {option.title}
+            </Text>
+                    <Text style={[styles.menuOptionSubtitle, { color: theme.colors.textSecondary }]}>
+                      {option.subtitle}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.filterModalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.filterModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.filterModalHeaderLeft}>
+                <View style={[styles.filterModalIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+                  <Ionicons name="filter-outline" size={20} color={theme.colors.primary} />
+                </View>
+                <Text style={[styles.filterModalTitle, { color: theme.colors.textPrimary }]}>
+                  Filtrer les prestations
+                </Text>
+              </View>
+          <TouchableOpacity
+                onPress={() => setShowFilterModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.filterModalBody}>
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterSectionTitle, { color: theme.colors.textPrimary }]}>
+                  Période de recherche
+                </Text>
+                
+                <View style={styles.filterItem}>
+                  <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date de début</Text>
+                  <TouchableOpacity
+                    style={[styles.dateButton, { 
+                      backgroundColor: theme.colors.background, 
+                      borderColor: theme.colors.border 
+                    }]}
+                    onPress={() => setShowDateDebutPicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+                    <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
+                      {formatDateForDisplay(tempFilters.dateDebut)}
+            </Text>
+          </TouchableOpacity>
+                </View>
+          
+                <View style={styles.filterItem}>
+                  <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date de fin</Text>
+          <TouchableOpacity
+                    style={[styles.dateButton, { 
+                      backgroundColor: theme.colors.background, 
+                      borderColor: theme.colors.border 
+                    }]}
+                    onPress={() => setShowDateFinPicker(true)}
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+                    <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
+                      {formatDateForDisplay(tempFilters.dateFin)}
+            </Text>
+          </TouchableOpacity>
+      </View>
+              </View>
+            </ScrollView>
+            
+            <View style={[styles.filterModalFooter, { borderTopColor: theme.colors.border }]}>
+              <TouchableOpacity
+                style={[styles.filterModalButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                onPress={() => {
+                  const resetFilters = {
+                    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
+                    dateFin: new Date()
+                  };
+                  setTempFilters(resetFilters);
+                  setFilters(resetFilters);
+                  setShowFilterModal(false);
+                  loadData(0, true);
+                }}
+              >
+                <Ionicons name="refresh-outline" size={18} color={theme.colors.textSecondary} />
+                <Text style={[styles.filterModalButtonText, { color: theme.colors.textSecondary }]}>Réinitialiser</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterModalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => {
+                  console.log('🔄 Application des filtres:', tempFilters);
+                  setFilters(tempFilters);
+                  setShowFilterModal(false);
+                  // Vider les données avant de recharger
+                  setPrestations([]);
+                  setFilteredPrestations([]);
+                  setCurrentPage(0);
+                  setHasMoreData(true);
+                  setInitialLoading(true); // Réactiver le loading initial
+                  loadData(0, true);
+                }}
+              >
+                <Ionicons name="checkmark-outline" size={18} color="white" />
+                <Text style={[styles.filterModalButtonText, { color: 'white' }]}>Appliquer</Text>
+              </TouchableOpacity>
+        </View>
+        </View>
+        </View>
+      </Modal>
+
+      {/* Date Pickers */}
+      {showDateDebutPicker && (
+        <DateTimePicker
+          value={filters.dateDebut}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateDebutChange}
+        />
+      )}
+
+      {showDateFinPicker && (
+        <DateTimePicker
+          value={filters.dateFin}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateFinChange}
+        />
+      )}
+
+      {/* Prestation Details Modal */}
+      <Modal
+        visible={showPrestationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPrestationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.prestationModalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.prestationModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.prestationModalHeaderLeft}>
+                <View style={[styles.prestationModalIcon, { backgroundColor: selectedPrestation ? getStatusColor(selectedPrestation) + '15' : theme.colors.primary + '15' }]}>
+                  <Ionicons 
+                    name={selectedPrestation?.acte_libelle?.includes('CONSULTATION') ? 'medical-outline' : 'flask-outline'} 
+                    size={20} 
+                    color={selectedPrestation ? getStatusColor(selectedPrestation) : theme.colors.primary} 
+                  />
+                </View>
+                <View>
+                  <Text style={[styles.prestationModalTitle, { color: theme.colors.textPrimary }]}>
+                    Détails de la prestation
+                  </Text>
+                  <Text style={[styles.prestationModalSubtitle, { color: theme.colors.textSecondary }]}>
+                    {selectedPrestation?.acte_libelle || 'Non renseigné'}
+                  </Text>
+                </View>
+              </View>
             <TouchableOpacity 
-              onPress={() => setShowDetailsModal(false)}
-              style={styles.closeButton}
+                onPress={() => setShowPrestationModal(false)}
+                style={styles.modalCloseButton}
             >
-              <Ionicons name="close" size={24} color="white" />
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Détails de la prestation</Text>
           </View>
           
+            <ScrollView style={styles.prestationModalBody}>
           {selectedPrestation && (
-            <ScrollView style={styles.modalContent}>
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.surface }]}>
-                <Text style={[styles.detailTitle, { color: theme.colors.textPrimary }]}>
-                  Informations du bénéficiaire
+                <>
+                  {/* Informations générales */}
+                  <View style={styles.prestationDetailSection}>
+                    <Text style={[styles.prestationDetailSectionTitle, { color: theme.colors.textPrimary }]}>
+                      Informations générales
                 </Text>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Nom:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.prenom_beneficiaire} {selectedPrestation.nom_beneficiaire}
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Patient</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.beneficiaire_prenom} {selectedPrestation.beneficiaire_nom}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Matricule:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.matricule_assure}
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Matricule assuré</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.matricule_assure || 'Non renseigné'}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Type:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.type_prestation}
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Date de prestation</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                        {formatDate(selectedPrestation.created_at)}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Montant:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Statut</Text>
+                      <View style={[styles.prestationDetailBadge, { backgroundColor: getStatusColor(selectedPrestation) }]}>
+                        <Text style={styles.prestationDetailBadgeText}>{getStatusText(selectedPrestation)}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Détails financiers */}
+                  <View style={styles.prestationDetailSection}>
+                    <Text style={[styles.prestationDetailSectionTitle, { color: theme.colors.textPrimary }]}>
+                      Détails financiers
+                    </Text>
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Montant total</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary, fontWeight: '600' }]}>
                     {formatAmount(selectedPrestation.montant)}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Date:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {formatDate(selectedPrestation.date_prestation)}
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Part assurance</Text>
+                      <Text style={[styles.prestationDetailValue, { color: '#3d8f9d', fontWeight: '600' }]}>
+                        {formatAmount(selectedPrestation.part_assurance)}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Statut:</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedPrestation.statut) }]}>
-                    <Text style={styles.statusText}>{selectedPrestation.statut}</Text>
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Part patient</Text>
+                      <Text style={[styles.prestationDetailValue, { color: '#FF9800', fontWeight: '600' }]}>
+                        {formatAmount(selectedPrestation.part_patient)}
+                      </Text>
                   </View>
                 </View>
-              </View>
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
 
-      {/* Custom Modal */}
-      <CustomModal {...modalState} />
+                  {/* Informations supplémentaires */}
+                  <View style={styles.prestationDetailSection}>
+                    <Text style={[styles.prestationDetailSectionTitle, { color: theme.colors.textPrimary }]}>
+                      Informations supplémentaires
+                    </Text>
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Garantie</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.garantie_libelle || 'Non renseigné'}
+                      </Text>
+              </View>
+                    
+                    <View style={styles.prestationDetailRow}>
+                      <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+                      <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.prestataire_libelle || 'Non renseigné'}
+                      </Text>
+                    </View>
+                    
+                    {selectedPrestation.quantite && (
+                      <View style={styles.prestationDetailRow}>
+                        <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Quantité</Text>
+                        <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                          {selectedPrestation.quantite}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {selectedPrestation.prix_unitaire && (
+                      <View style={styles.prestationDetailRow}>
+                        <Text style={[styles.prestationDetailLabel, { color: theme.colors.textSecondary }]}>Prix unitaire</Text>
+                        <Text style={[styles.prestationDetailValue, { color: theme.colors.textPrimary }]}>
+                          {formatAmount(selectedPrestation.prix_unitaire)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -541,10 +825,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
   },
   menuButton: {
     width: 40,
@@ -560,33 +854,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    backgroundColor: '#FFFFFF',
+  content: {
+    flex: 1,
   },
-  tabsScrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 48,
+    paddingHorizontal: 20,
   },
-  tab: {
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyStateIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+    color: '#2D3748',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    color: '#718096',
+  },
+  emptyStateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     borderRadius: 12,
-    marginHorizontal: 4,
+    marginTop: 8,
+    minWidth: 200,
   },
-  tabText: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginLeft: 4,
+  emptyStateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    color: 'white',
   },
-  content: {
-    flex: 1,
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   listContainer: {
     paddingHorizontal: 20,
@@ -594,23 +938,293 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   prestationCard: {
-    marginBottom: 15,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8F4F8',
-    backgroundColor: '#FFFFFF',
-  },
-  prestationContent: {
-    flexDirection: 'row',
+    marginBottom: 16,
+    borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  prestationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  prestationHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  prestationIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  prestationHeaderInfo: {
+    flex: 1,
+  },
+  prestationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  prestationDate: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  patientInfo: {
+    marginBottom: 16,
+  },
+  patientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  patientName: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
+  },
+  matriculeText: {
+    fontSize: 12,
+    marginLeft: 8,
+    opacity: 0.7,
+  },
+  prestationFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  amountContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  amountLabel: {
+    fontSize: 11,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  amountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  prestationLeft: {
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  menuOptions: {
+    paddingVertical: 8,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  menuOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuOptionContent: {
+    flex: 1,
+  },
+  menuOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  menuOptionSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalBody: {
+    maxHeight: 400,
+    paddingHorizontal: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderWidth: 1,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  filterItem: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  dateButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  loadingFooter: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  // Nouveaux styles pour le modal de filtres amélioré
+  filterModalContent: {
+    width: '90%',
+    maxHeight: '70%',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+  },
+  filterModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterModalIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  filterModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  filterModalBody: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+  },
+  filterModalButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginHorizontal: 6,
+    borderWidth: 1,
   },
-  prestationIcon: {
+  filterModalButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  // Styles pour le modal de détails de prestation
+  prestationModalContent: {
+    width: '95%',
+    maxHeight: '85%',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  prestationModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+  },
+  prestationModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  prestationModalIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -618,107 +1232,229 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  prestationInfo: {
-    flex: 1,
-  },
-  patientName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  prestationType: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  prestationDate: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  matriculeText: {
-    fontSize: 12,
-  },
-  prestationRight: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  emptyStateText: {
+  prestationModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: 2,
   },
-  emptyStateSubtext: {
+  prestationModalSubtitle: {
     fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
+    opacity: 0.7,
   },
-  modalContainer: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  prestationModalBody: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
-  closeButton: {
-    marginRight: 16,
+  prestationDetailSection: {
+    marginBottom: 24,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  detailCard: {
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E8F4F8',
-  },
-  detailTitle: {
+  prestationDetailSectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 16,
+    color: '#3d8f9d',
   },
-  detailRow: {
+  prestationDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
-  detailLabel: {
+  prestationDetailLabel: {
     fontSize: 14,
     flex: 1,
   },
-  detailValue: {
+  prestationDetailValue: {
     fontSize: 14,
-    fontWeight: '500',
-    flex: 2,
+    flex: 1,
     textAlign: 'right',
+  },
+  prestationDetailBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  prestationDetailBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Nouvelle disposition pour l'affichage du patient
+  patientSectionNew: {
+    marginVertical: 16,
+  },
+  patientCardContainer: {
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  patientCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  patientAvatarNew: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  patientInfoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  patientNameNew: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+    lineHeight: 22,
+  },
+  patientBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  patientBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  
+  // Nouveaux styles modernes pour les cartes
+  prestationCardModern: {
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardHeaderModern: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainerModern: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  cardTitleModern: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateTextModern: {
+    fontSize: 13,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  statusBadgeModern: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  statusTextModern: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  patientSectionModern: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  patientIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  patientInfoModern: {
+    flex: 1,
+  },
+  patientNameModern: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  patientMatriculeModern: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  
+  amountsSectionModern: {
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  amountRowModern: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  amountItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  amountLabelModern: {
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  amountValueModern: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  amountDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginHorizontal: 8,
   },
 });
 

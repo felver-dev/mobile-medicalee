@@ -20,8 +20,9 @@ import PrestataireServeMedicamentsScreen from '../screens/portail_prestataire/Pr
 import PrestataireQuantitySelectionScreen from '../screens/portail_prestataire/PrestataireQuantitySelectionScreen';
 import PrestatairePrescriptionsScreen from '../screens/portail_prestataire/PrestatairePrescriptionsScreen';
 import PrescriptionByGarantieScreen from '../screens/portail_prestataire/PrescriptionByGarantieScreen';
-import PrescriptionByFamilleScreen from '../screens/portail_prestataire/PrescriptionByFamilleScreen';
 import PrescriptionEnAttenteScreen from '../screens/portail_prestataire/PrescriptionEnAttenteScreen';
+import PrestationsByGarantieScreen from '../screens/portail_prestataire/PrestationsByGarantieScreen';
+import PrestationsByFamilleScreen from '../screens/portail_prestataire/PrestationsByFamilleScreen';
 import PrestataireDrawerMenu from './PrestataireDrawerMenu';
 
 const Tab = createBottomTabNavigator();
@@ -43,8 +44,6 @@ function PrestataireTabNavigator() {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Prescriptions') {
             iconName = focused ? 'document' : 'document-outline';
-          } else if (route.name === 'Reports') {
-            iconName = focused ? 'document-text' : 'document-text-outline';
           } else if (route.name === 'Medicaments') {
             iconName = focused ? 'medical' : 'medical-outline';
           }
@@ -83,13 +82,6 @@ function PrestataireTabNavigator() {
         component={PrestatairePrescriptionsScreen}
         options={{
           title: 'Prescriptions',
-        }}
-      />
-      <Tab.Screen 
-        name="Reports" 
-        component={PrestataireReportsScreen}
-        options={{
-          title: 'Rapports',
         }}
       />
       <Tab.Screen 
@@ -138,9 +130,10 @@ const PrestataireNavigator: React.FC = () => {
       <Stack.Screen name="MedicamentDetails" component={MedicamentDetailsScreen} />
       <Stack.Screen name="ServeMedicaments" component={PrestataireServeMedicamentsScreen} />
       <Stack.Screen name="QuantitySelection" component={PrestataireQuantitySelectionScreen} />
-      <Stack.Screen name="PrescriptionByGarantie" component={PrescriptionByGarantieScreen} />
-      <Stack.Screen name="PrescriptionByFamille" component={PrescriptionByFamilleScreen} />
-      <Stack.Screen name="PrescriptionEnAttente" component={PrescriptionEnAttenteScreen} />
+        <Stack.Screen name="PrescriptionByGarantie" component={PrescriptionByGarantieScreen} />
+        <Stack.Screen name="PrescriptionEnAttente" component={PrescriptionEnAttenteScreen} />
+        <Stack.Screen name="PrestationsByGarantie" component={PrestationsByGarantieScreen} />
+        <Stack.Screen name="PrestationsByFamille" component={PrestationsByFamilleScreen} />
     </Stack.Navigator>
   );
 };
