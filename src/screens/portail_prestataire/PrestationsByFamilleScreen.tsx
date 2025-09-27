@@ -8,14 +8,17 @@ import {
   FlatList,
   Modal,
   TextInput,
-  ScrollView
+  ScrollView,
+  Dimensions,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
-import { SafeAreaView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native';
 import { usePrestataireTheme } from '../../context/PrestataireThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import Loader, { LoadingCard } from '../../components/Loader';
+import ApiService from '../../services/ApiService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface PrestationsByFamilleScreenProps {
   navigation: any;
@@ -23,72 +26,177 @@ interface PrestationsByFamilleScreenProps {
 
 interface PrestationItem {
   id: number;
-  nom_beneficiaire: string;
-  prenom_beneficiaire: string;
+  beneficiaire_nom: string;
+  beneficiaire_prenom: string;
   matricule_assure: number;
-  type_prestation: string;
+  acte_libelle: string;
   montant: number;
-  date_prestation: string;
+  part_assurance: number;
+  part_patient: number;
+  created_at: string;
   statut: string;
   garantie_libelle: string;
-  details?: string;
+  prestataire_libelle: string;
+  quantite: number;
+  prix_unitaire: number;
 }
 
 interface FamilleFilter {
-  matriculeAssure: string;
-  dateDebut: string;
-  dateFin: string;
+  matriculeFamille: string;
+  dateDebut: Date;
+  dateFin: Date;
 }
+
+const { width } = Dimensions.get('window');
 
 const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const { theme } = usePrestataireTheme();
-  const [refreshing, setRefreshing] = useState(false);
+  const apiService = new ApiService();
+  
   const [prestations, setPrestations] = useState<PrestationItem[]>([]);
   const [filteredPrestations, setFilteredPrestations] = useState<PrestationItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  
   const [selectedPrestation, setSelectedPrestation] = useState<PrestationItem | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  
   const [filters, setFilters] = useState<FamilleFilter>({
-    matriculeAssure: '',
-    dateDebut: '',
-    dateFin: ''
+    matriculeFamille: '',
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours ago
+    dateFin: new Date()
   });
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  
+  const [tempFilters, setTempFilters] = useState<FamilleFilter>({
+    matriculeFamille: '',
+    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours ago
+    dateFin: new Date()
+  });
+  
+  const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
+  const [showDateFinPicker, setShowDateFinPicker] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (page: number = 0, reset: boolean = true) => {
+    console.log('🔍 PrestationsByFamilleScreen.loadData démarré - Page:', page);
+    
     setLoading(true);
+    setError(null);
+    
+    if (reset) {
+      setCurrentPage(0);
+      setHasMoreData(true);
+    }
+    
     try {
-      console.log('🔍 PrestationsByFamilleScreen.loadData démarré');
-      
-      // TODO: Intégrer l'API réelle ici
-      // Pour l'instant, données vides
-      setPrestations([]);
-      setFilteredPrestations([]);
+      const payload = {
+        user_id: user.id,
+        filiale_id: user.filiale_id,
+        matricule_assure: filters.matriculeFamille ? parseInt(filters.matriculeFamille) : undefined,
+        date_debut: `${filters.dateDebut.toISOString().split('T')[0]}T00:00:00.000Z`,
+        date_fin: `${filters.dateFin.toISOString().split('T')[0]}T00:00:00.000Z`,
+        data: {
+          prestataire_id: user.prestataire_id || user.id,
+          famille_id: filters.matriculeFamille ? parseInt(filters.matriculeFamille) : undefined
+        },
+        index: page * 10,
+        size: 10
+      };
 
-      console.log('✅ Chargement des prestations par famille terminé');
+      console.log('📤 Payload API:', JSON.stringify(payload, null, 2));
+
+      const response = await apiService.getPrestations(payload);
+      
+      console.log('📥 Réponse API complète:', {
+        hasError: response.hasError,
+        itemsLength: response.items?.length || 0,
+        total: response.total,
+        page: page,
+        payload: payload
+      });
+      
+      if (response && !response.hasError && response.items) {
+        console.log('📥 Données reçues:', {
+          itemsCount: response.items.length,
+          totalItems: response.total || 'Non spécifié',
+          currentPage: page,
+          hasMoreData: response.items.length === 10,
+          nextPageWillBe: page + 1,
+          nextPageIndex: (page + 1) * 10
+        });
+        
+        if (reset) {
+          setPrestations(response.items);
+          setFilteredPrestations(response.items);
+        } else {
+          setPrestations(prev => [...prev, ...response.items]);
+          setFilteredPrestations(prev => [...prev, ...response.items]);
+        }
+        
+        // Vérifier s'il y a plus de données
+        // Si nous recevons moins de 10 éléments, c'est la dernière page
+        // Si nous recevons exactement 10 éléments, il pourrait y avoir plus de données
+        setHasMoreData(response.items.length === 10);
+        setCurrentPage(page);
+        setError(null);
+      } else {
+        console.log('⚠️ Aucune donnée reçue ou erreur dans la réponse');
+        if (reset) {
+          setPrestations([]);
+          setFilteredPrestations([]);
+        }
+        setHasMoreData(false);
+        setError(null);
+      }
+
+      console.log('✅ Chargement des prestations terminé');
 
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des prestations par famille:', error);
+      console.error('❌ Erreur lors du chargement des prestations:', error);
+      setError('Erreur lors du chargement des données');
+      
+      if (reset) {
+        setPrestations([]);
+        setFilteredPrestations([]);
+      }
+      setHasMoreData(false);
     } finally {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, []);
+  }, [user, filters, apiService]);
 
   useEffect(() => {
-    loadData();
+    loadData(0, true);
+  }, []); // Supprimer loadData des dépendances pour éviter le rechargement automatique
+
+  const loadMoreData = useCallback(() => {
+    console.log('🔄 loadMoreData appelé - loading:', loading, 'hasMoreData:', hasMoreData, 'currentPage:', currentPage);
+    console.log('📊 État actuel - prestations:', prestations.length, 'filteredPrestations:', filteredPrestations.length);
+    if (!loading && hasMoreData) {
+      console.log('📥 Chargement de la page suivante:', currentPage + 1);
+      loadData(currentPage + 1, false);
+    } else {
+      console.log('⏹️ Chargement arrêté - loading:', loading, 'hasMoreData:', hasMoreData);
+    }
+  }, [loading, hasMoreData, currentPage, loadData, prestations.length, filteredPrestations.length]);
+
+  const onRefresh = useCallback(() => {
+    loadData(0, true);
   }, [loadData]);
 
-  const applyFilters = () => {
-    let filtered = [...prestations];
+  const openFilterModal = () => {
+    setTempFilters(filters);
+    setShowFilterModal(true);
+  };
 
-    if (filters.matriculeAssure) {
-      filtered = filtered.filter(p => p.matricule_assure.toString().includes(filters.matriculeAssure));
-    }
-
-    setFilteredPrestations(filtered);
+  const openPrestationModal = (prestation: PrestationItem) => {
+    setSelectedPrestation(prestation);
+    setShowDetailsModal(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -104,6 +212,8 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
   };
 
   const getStatusColor = (status: string) => {
+    if (!status) return '#666666';
+    
     switch (status.toLowerCase()) {
       case 'validée':
         return '#3d8f9d';
@@ -116,47 +226,101 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
     }
   };
 
+  const getStatusText = (prestation: PrestationItem) => {
+    return prestation.statut || 'Inconnu';
+  };
+
   const handlePrestationPress = (prestation: PrestationItem) => {
     setSelectedPrestation(prestation);
     setShowDetailsModal(true);
   };
 
+  const handleDateDebutChange = (event: any, selectedDate?: Date) => {
+    setShowDateDebutPicker(false);
+    if (selectedDate) {
+      setTempFilters(prev => ({ ...prev, dateDebut: selectedDate }));
+    }
+  };
+
+  const handleDateFinChange = (event: any, selectedDate?: Date) => {
+    setShowDateFinPicker(false);
+    if (selectedDate) {
+      setTempFilters(prev => ({ ...prev, dateFin: selectedDate }));
+    }
+  };
+
   const renderPrestationItem = ({ item }: { item: PrestationItem }) => (
     <TouchableOpacity 
-      style={[styles.prestationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[styles.prestationCardModern, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
-      onPress={() => handlePrestationPress(item)}
+      onPress={() => openPrestationModal(item)}
     >
-      <View style={styles.prestationContent}>
-        <View style={styles.prestationLeft}>
-          <View style={[styles.prestationIcon, { backgroundColor: getStatusColor(item.statut) + '15' }]}>
+      {/* Header moderne avec gradient */}
+      <View style={[styles.cardHeaderModern, { backgroundColor: theme.colors.primary + '08' }]}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.iconContainerModern, { backgroundColor: theme.colors.primary }]}>
             <Ionicons 
-              name={item.type_prestation === 'Consultation' ? 'medical-outline' : 'flask-outline'} 
-              size={22} 
-              color={getStatusColor(item.statut)} 
+              name={item.acte_libelle?.includes('CONSULTATION') ? 'medical' : 'flask'} 
+              size={24} 
+              color="white" 
             />
           </View>
-          <View style={styles.prestationInfo}>
-            <Text style={[styles.patientName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.prenom_beneficiaire} {item.nom_beneficiaire}
+          <View style={styles.headerInfo}>
+            <Text style={[styles.cardTitleModern, { color: theme.colors.textPrimary }]} numberOfLines={2}>
+              {item.acte_libelle || 'Non renseigné'}
             </Text>
-            <Text style={[styles.prestationType, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.type_prestation}
+            <View style={styles.dateContainer}>
+              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.dateTextModern, { color: theme.colors.textSecondary }]}>
+                {formatDate(item.created_at)}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={[styles.statusBadgeModern, { backgroundColor: getStatusColor(item.statut || '') }]}>
+          <Text style={styles.statusTextModern}>{getStatusText(item)}</Text>
+        </View>
+      </View>
+
+      {/* Section patient moderne */}
+      <View style={styles.patientSectionModern}>
+        <View style={styles.patientRow}>
+          <View style={[styles.patientIconContainer, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="person" size={18} color={theme.colors.primary} />
+          </View>
+          <View style={styles.patientInfoModern}>
+            <Text style={[styles.patientNameModern, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.beneficiaire_prenom} {item.beneficiaire_nom}
             </Text>
-            <Text style={[styles.prestationDate, { color: theme.colors.textSecondary }]}>
-              {formatDate(item.date_prestation)}
-            </Text>
-            <Text style={[styles.matriculeText, { color: theme.colors.textSecondary }]}>
-              Matricule: {item.matricule_assure}
+            <Text style={[styles.patientMatriculeModern, { color: theme.colors.textSecondary }]}>
+              Matricule: {item.matricule_assure || 'Non renseigné'}
             </Text>
           </View>
         </View>
-        <View style={styles.prestationRight}>
-          <Text style={[styles.amountText, { color: theme.colors.textPrimary }]}>
-            {formatAmount(item.montant)}
-          </Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.statut) }]}>
-            <Text style={styles.statusText}>{item.statut}</Text>
+      </View>
+
+      {/* Section montants moderne */}
+      <View style={styles.amountsSectionModern}>
+        <View style={styles.amountRowModern}>
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Total</Text>
+            <Text style={[styles.amountValueModern, { color: theme.colors.textPrimary }]}>
+              {formatAmount(item.montant)}
+            </Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Assurance</Text>
+            <Text style={[styles.amountValueModern, { color: '#3d8f9d' }]}>
+              {formatAmount(item.part_assurance)}
+            </Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Patient</Text>
+            <Text style={[styles.amountValueModern, { color: '#FF9800' }]}>
+              {formatAmount(item.part_patient)}
+            </Text>
           </View>
         </View>
       </View>
@@ -164,6 +328,54 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
   );
 
   const renderContent = () => {
+    console.log('🔍 renderContent appelé - error:', error, 'loading:', loading, 'initialLoading:', initialLoading, 'prestations:', prestations.length, 'filteredPrestations:', filteredPrestations.length);
+    
+    if (error) {
+      return (
+        <View style={styles.errorState}>
+          <View style={[styles.errorIcon, { backgroundColor: '#F44336' + '15' }]}>
+            <Ionicons name="alert-circle-outline" size={48} color="#F44336" />
+          </View>
+          <Text style={[styles.errorTitle, { color: '#2D3748' }]}>
+            Erreur de chargement
+          </Text>
+          <Text style={[styles.errorText, { color: '#718096' }]}>
+            {error}
+          </Text>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => loadData(0, true)}
+          >
+            <Ionicons name="refresh-outline" size={20} color="white" />
+            <Text style={[styles.retryButtonText, { color: 'white' }]}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (prestations.length === 0 && !loading) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyStateIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="people-outline" size={48} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.emptyStateTitle, { color: '#2D3748' }]}>
+            Aucune prestation trouvée
+          </Text>
+          <Text style={[styles.emptyStateText, { color: '#718096' }]}>
+            Aucune prestation n'a été trouvée pour cette famille dans la période sélectionnée.
+          </Text>
+          <TouchableOpacity 
+            style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+            onPress={openFilterModal}
+          >
+            <Ionicons name="filter-outline" size={20} color="white" />
+            <Text style={[styles.emptyStateButtonText, { color: 'white' }]}>Modifier les filtres</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <FlatList
         data={filteredPrestations}
@@ -173,22 +385,25 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={loadData}
+            refreshing={loading && !initialLoading}
+            onRefresh={onRefresh}
             tintColor={theme.colors.primary}
           />
         }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={theme.colors.textSecondary} />
-            <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-              Aucune prestation trouvée
-            </Text>
-            <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
-              Vous n'avez pas encore de prestations pour cette famille
-            </Text>
-          </View>
-        )}
+        onEndReached={loadMoreData}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => {
+          if (loading && !initialLoading) {
+            return (
+              <View style={styles.loadingFooter}>
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+                  Chargement...
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        }}
       />
     );
   };
@@ -211,7 +426,7 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
           <Text style={styles.headerTitle}>Prestations par Famille</Text>
           <TouchableOpacity 
             style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            onPress={() => setShowFilterModal(true)}
+            onPress={openFilterModal}
           >
             <Ionicons name="filter-outline" size={20} color="white" />
           </TouchableOpacity>
@@ -220,25 +435,19 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
 
       {/* Content */}
       {initialLoading ? (
-        <View style={styles.content}>
-          <LoadingCard 
-            visible={initialLoading} 
-            message="Chargement des prestations..." 
-            height={300}
-          />
+        <View style={styles.loadingContainer}>
+          <View style={[styles.loadingIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="people-outline" size={48} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.loadingText, { color: theme.colors.textPrimary }]}>
+            Chargement des prestations...
+          </Text>
         </View>
       ) : (
         <View style={styles.content}>
           {renderContent()}
         </View>
       )}
-      
-      {/* Loader overlay */}
-      <Loader 
-        visible={loading && !initialLoading} 
-        message="Mise à jour des données..." 
-        overlay={true}
-      />
 
       {/* Filter Modal */}
       <Modal
@@ -263,19 +472,67 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
             
             <ScrollView style={styles.modalBody}>
               <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Matricule de l'assuré</Text>
+                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Matricule de la famille</Text>
                 <TextInput
                   style={[styles.textInput, { 
                     backgroundColor: theme.colors.background, 
                     borderColor: theme.colors.border,
                     color: theme.colors.textPrimary 
                   }]}
-                  placeholder="Entrez le matricule..."
+                  placeholder="Entrez le matricule de la famille..."
                   placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.matriculeAssure}
-                  onChangeText={(text) => setFilters({...filters, matriculeAssure: text})}
+                  value={tempFilters.matriculeFamille}
+                  onChangeText={(text) => setTempFilters({...tempFilters, matriculeFamille: text})}
                   keyboardType="numeric"
                 />
+              </View>
+
+              <View style={styles.filterItem}>
+                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date de début</Text>
+                <TouchableOpacity 
+                  style={[styles.dateButton, { 
+                    backgroundColor: theme.colors.background, 
+                    borderColor: theme.colors.border 
+                  }]}
+                  onPress={() => setShowDateDebutPicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={theme.colors.textSecondary} />
+                  <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
+                    {tempFilters.dateDebut.toLocaleDateString('fr-FR')}
+                  </Text>
+                </TouchableOpacity>
+                {showDateDebutPicker && (
+                  <DateTimePicker
+                    value={tempFilters.dateDebut}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateDebutChange}
+                  />
+                )}
+              </View>
+
+              <View style={styles.filterItem}>
+                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Date de fin</Text>
+                <TouchableOpacity 
+                  style={[styles.dateButton, { 
+                    backgroundColor: theme.colors.background, 
+                    borderColor: theme.colors.border 
+                  }]}
+                  onPress={() => setShowDateFinPicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={theme.colors.textSecondary} />
+                  <Text style={[styles.dateButtonText, { color: theme.colors.textPrimary }]}>
+                    {tempFilters.dateFin.toLocaleDateString('fr-FR')}
+                  </Text>
+                </TouchableOpacity>
+                {showDateFinPicker && (
+                  <DateTimePicker
+                    value={tempFilters.dateFin}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateFinChange}
+                  />
+                )}
               </View>
             </ScrollView>
             
@@ -283,8 +540,18 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
               <TouchableOpacity 
                 style={[styles.modalButton, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
                 onPress={() => {
-                  setFilters({ matriculeAssure: '', dateDebut: '', dateFin: '' });
+                  setTempFilters({
+                    matriculeFamille: '',
+                    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    dateFin: new Date()
+                  });
+                  setFilters({
+                    matriculeFamille: '',
+                    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    dateFin: new Date()
+                  });
                   setShowFilterModal(false);
+                  loadData(0, true);
                 }}
               >
                 <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>Effacer</Text>
@@ -292,10 +559,18 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
               <TouchableOpacity 
                 style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => {
-                  applyFilters();
+                  setFilters(tempFilters);
                   setShowFilterModal(false);
+                  // Vider les données avant de recharger
+                  setPrestations([]);
+                  setFilteredPrestations([]);
+                  setCurrentPage(0);
+                  setHasMoreData(true);
+                  setInitialLoading(true); // Réactiver le loading initial
+                  loadData(0, true);
                 }}
               >
+                <Ionicons name="checkmark-outline" size={18} color="white" />
                 <Text style={[styles.modalButtonText, { color: 'white' }]}>Rechercher</Text>
               </TouchableOpacity>
             </View>
@@ -311,66 +586,115 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
         onRequestClose={() => setShowDetailsModal(false)}
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme.colors.primary }]}>
+          <View style={[styles.modalHeaderModern, { backgroundColor: theme.colors.primary }]}>
             <TouchableOpacity 
               onPress={() => setShowDetailsModal(false)}
-              style={styles.closeButton}
+              style={styles.closeButtonModern}
             >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Détails de la prestation</Text>
+            <View style={styles.modalTitleContainer}>
+              <Text style={styles.modalTitleModern}>Détails de la prestation</Text>
+              <Text style={styles.modalSubtitle}>Informations complètes</Text>
+            </View>
           </View>
           
           {selectedPrestation && (
-            <View style={styles.modalContent}>
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.surface }]}>
-                <Text style={[styles.detailTitle, { color: theme.colors.textPrimary }]}>
-                  Informations du bénéficiaire
-                </Text>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Nom:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.prenom_beneficiaire} {selectedPrestation.nom_beneficiaire}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Matricule:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.matricule_assure}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Type:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.type_prestation}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Garantie:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrestation.garantie_libelle}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Montant:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {formatAmount(selectedPrestation.montant)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Date:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {formatDate(selectedPrestation.date_prestation)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Statut:</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedPrestation.statut) }]}>
-                    <Text style={styles.statusText}>{selectedPrestation.statut}</Text>
+            <ScrollView style={styles.modalBodyModern}>
+              {/* Carte patient */}
+              <View style={[styles.patientCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.patientHeader}>
+                  <View style={[styles.patientAvatar, { backgroundColor: theme.colors.primary + '15' }]}>
+                    <Ionicons name="person" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.patientInfo}>
+                    <Text style={[styles.patientName, { color: theme.colors.textPrimary }]}>
+                      {selectedPrestation.beneficiaire_prenom} {selectedPrestation.beneficiaire_nom}
+                    </Text>
+                    <Text style={[styles.patientMatricule, { color: theme.colors.textSecondary }]}>
+                      Matricule: {selectedPrestation.matricule_assure}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusBadgeModern, { backgroundColor: getStatusColor(selectedPrestation.statut || '') }]}>
+                    <Text style={styles.statusTextModern}>{selectedPrestation.statut}</Text>
                   </View>
                 </View>
               </View>
-            </View>
+
+              {/* Carte détails financiers */}
+              <View style={[styles.financialCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+                    <Ionicons name="card-outline" size={20} color={theme.colors.primary} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: theme.colors.textPrimary }]}>Détails financiers</Text>
+                </View>
+                <View style={styles.financialGrid}>
+                  <View style={styles.financialItem}>
+                    <Text style={[styles.financialLabel, { color: theme.colors.textSecondary }]}>Montant total</Text>
+                    <Text style={[styles.financialValue, { color: theme.colors.textPrimary }]}>
+                      {formatAmount(selectedPrestation.montant)}
+                    </Text>
+                  </View>
+                  <View style={styles.financialItem}>
+                    <Text style={[styles.financialLabel, { color: theme.colors.textSecondary }]}>Part assurance</Text>
+                    <Text style={[styles.financialValue, { color: '#3d8f9d' }]}>
+                      {formatAmount(selectedPrestation.part_assurance)}
+                    </Text>
+                  </View>
+                  <View style={styles.financialItem}>
+                    <Text style={[styles.financialLabel, { color: theme.colors.textSecondary }]}>Part patient</Text>
+                    <Text style={[styles.financialValue, { color: '#FF9800' }]}>
+                      {formatAmount(selectedPrestation.part_patient)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Carte informations supplémentaires */}
+              <View style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIcon, { backgroundColor: theme.colors.primary + '15' }]}>
+                    <Ionicons name="information-circle-outline" size={20} color={theme.colors.primary} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: theme.colors.textPrimary }]}>Informations</Text>
+                </View>
+                <View style={styles.infoGrid}>
+                  <View style={styles.infoItem}>
+                    <View style={styles.infoContent}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Type de prestation</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.acte_libelle}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <View style={styles.infoContent}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Garantie</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.garantie_libelle}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <View style={styles.infoContent}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {selectedPrestation.prestataire_libelle}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <View style={styles.infoContent}>
+                      <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Date de création</Text>
+                      <Text style={[styles.infoValue, { color: theme.colors.textPrimary }]}>
+                        {formatDate(selectedPrestation.created_at)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
           )}
         </SafeAreaView>
       </Modal>
@@ -418,83 +742,111 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 20,
   },
-  prestationCard: {
-    marginBottom: 15,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  prestationContent: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'center',
-  },
-  prestationLeft: {
+  
+  // États de chargement et d'erreur
+  loadingContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  prestationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  prestationInfo: {
-    flex: 1,
-  },
-  patientName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  prestationType: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  prestationDate: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  matriculeText: {
-    fontSize: 12,
-  },
-  prestationRight: {
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 80,
     paddingHorizontal: 40,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 20,
+  loadingIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  
+  errorState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
   },
-  emptyStateSubtext: {
-    fontSize: 14,
+  errorText: {
+    fontSize: 16,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: 24,
   },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyStateIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  emptyStateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  emptyStateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  
+  // Modal de filtres
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -538,6 +890,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   modalButtonText: {
     fontSize: 16,
@@ -558,37 +912,266 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
   },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  
+  // Modal de détails
   modalContainer: {
     flex: 1,
   },
-  closeButton: {
+  modalHeaderModern: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  closeButtonModern: {
     marginRight: 16,
   },
-  detailCard: {
-    borderRadius: 12,
-    padding: 16,
+  modalTitleContainer: {
+    flex: 1,
+  },
+  modalTitleModern: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  modalBodyModern: {
+    flex: 1,
+    padding: 20,
+  },
+  
+  // Cartes du modal de détails
+  patientCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
   },
-  detailTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  patientHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  patientInfo: {
+    flex: 1,
+  },
+  patientName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  patientMatricule: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  
+  financialCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  detailRow: {
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  financialGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  financialItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  financialLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  financialValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  // Styles pour la grille d'informations
+  infoCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  infoGrid: {
+    gap: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Nouveaux styles modernes pour les cartes
+  prestationCardModern: {
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardHeaderModern: {
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  detailLabel: {
-    fontSize: 14,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  detailValue: {
-    fontSize: 14,
+  iconContainerModern: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  cardTitleModern: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateTextModern: {
+    fontSize: 13,
+    marginLeft: 6,
     fontWeight: '500',
-    flex: 2,
-    textAlign: 'right',
+  },
+  statusBadgeModern: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  statusTextModern: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  patientSectionModern: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  patientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  patientInfoModern: {
+    flex: 1,
+  },
+  patientNameModern: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  patientMatriculeModern: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  
+  amountsSectionModern: {
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  amountRowModern: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  amountItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  amountLabelModern: {
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  amountValueModern: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  amountDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginHorizontal: 8,
   },
 });
 

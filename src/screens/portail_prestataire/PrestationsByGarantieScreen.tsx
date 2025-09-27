@@ -99,8 +99,8 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
         data: {
           prestataire_id: user.prestataire_id || user.id
         },
-        index: page * 100,
-        size: 100
+        index: page * 10,
+        size: 10
       };
 
       console.log('📤 Payload API:', JSON.stringify(payload, null, 2));
@@ -109,10 +109,23 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
 
       const response = await apiService.getPrestations(payload);
       
-      console.log('📥 Réponse API complète:', response);
+      console.log('📥 Réponse API complète:', {
+        hasError: response.hasError,
+        itemsLength: response.items?.length || 0,
+        total: response.total,
+        page: page,
+        payload: payload
+      });
       
       if (response && !response.hasError && response.items) {
-        console.log('📥 Données reçues:', response.items.length, 'éléments');
+        console.log('📥 Données reçues:', {
+          itemsCount: response.items.length,
+          totalItems: response.total || 'Non spécifié',
+          currentPage: page,
+          hasMoreData: response.items.length === 10,
+          nextPageWillBe: page + 1,
+          nextPageIndex: (page + 1) * 10
+        });
         
         if (reset) {
           setPrestations(response.items);
@@ -123,7 +136,9 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
         }
         
         // Vérifier s'il y a plus de données
-        setHasMoreData(response.items.length >= 100);
+        // Si nous recevons moins de 10 éléments, c'est la dernière page
+        // Si nous recevons exactement 10 éléments, il pourrait y avoir plus de données
+        setHasMoreData(response.items.length === 10);
         setCurrentPage(page);
         setError(null);
       } else {
@@ -159,13 +174,14 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
 
   const loadMoreData = useCallback(() => {
     console.log('🔄 loadMoreData appelé - loading:', loading, 'hasMoreData:', hasMoreData, 'currentPage:', currentPage);
+    console.log('📊 État actuel - prestations:', prestations.length, 'filteredPrestations:', filteredPrestations.length);
     if (!loading && hasMoreData) {
       console.log('📥 Chargement de la page suivante:', currentPage + 1);
       loadData(currentPage + 1, false);
     } else {
       console.log('⏹️ Chargement arrêté - loading:', loading, 'hasMoreData:', hasMoreData);
     }
-  }, [loading, hasMoreData, currentPage, loadData]);
+  }, [loading, hasMoreData, currentPage, loadData, prestations.length, filteredPrestations.length]);
 
   const onRefresh = useCallback(() => {
     loadData(0, true);
@@ -223,73 +239,77 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
 
   const renderPrestationItem = ({ item }: { item: PrestationItem }) => (
     <TouchableOpacity 
-      style={[styles.prestationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[styles.prestationCardModern, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
       activeOpacity={0.7}
       onPress={() => openPrestationModal(item)}
     >
-      {/* Header avec icône et statut */}
-      <View style={styles.prestationHeader}>
-        <View style={styles.prestationHeaderLeft}>
-          <View style={[styles.prestationIcon, { backgroundColor: getStatusColor(item) + '15' }]}>
+      {/* Header moderne avec gradient */}
+      <View style={[styles.cardHeaderModern, { backgroundColor: theme.colors.primary + '08' }]}>
+        <View style={styles.headerLeft}>
+          <View style={[styles.iconContainerModern, { backgroundColor: theme.colors.primary }]}>
             <Ionicons 
-              name={item.acte_libelle?.includes('CONSULTATION') ? 'medical-outline' : 'flask-outline'} 
-              size={20} 
-              color={getStatusColor(item)} 
+              name={item.acte_libelle?.includes('CONSULTATION') ? 'medical' : 'flask'} 
+              size={24} 
+              color="white" 
             />
           </View>
-          <View style={styles.prestationInfo}>
-            <Text style={[styles.prestationTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+          <View style={styles.headerInfo}>
+            <Text style={[styles.cardTitleModern, { color: theme.colors.textPrimary }]} numberOfLines={2}>
               {item.acte_libelle || 'Non renseigné'}
             </Text>
-            <Text style={[styles.prestationDate, { color: theme.colors.textSecondary }]}>
-              {formatDate(item.created_at)}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item) }]}>
-          <Text style={styles.statusText}>{getStatusText(item)}</Text>
-        </View>
-      </View>
-
-      {/* Informations patient améliorées */}
-      <View style={styles.patientSection}>
-        <View style={styles.patientHeaderCard}>
-          <View style={[styles.patientAvatarCard, { backgroundColor: theme.colors.primary + '15' }]}>
-            <Ionicons name="person" size={20} color={theme.colors.primary} />
-          </View>
-          <View style={styles.patientDetails}>
-            <Text style={[styles.patientNameCard, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-              {item.beneficiaire_prenom} {item.beneficiaire_nom}
-            </Text>
-            <View style={styles.patientMatriculeRow}>
-              <Ionicons name="card-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.patientMatriculeCard, { color: theme.colors.textSecondary }]}>
-                {item.matricule_assure || 'Non renseigné'}
+            <View style={styles.dateContainer}>
+              <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.dateTextModern, { color: theme.colors.textSecondary }]}>
+                {formatDate(item.created_at)}
               </Text>
             </View>
           </View>
         </View>
+        <View style={[styles.statusBadgeModern, { backgroundColor: getStatusColor(item) }]}>
+          <Text style={styles.statusTextModern}>{getStatusText(item)}</Text>
+        </View>
       </View>
 
-      {/* Footer avec montants */}
-      <View style={styles.prestationFooter}>
-        <View style={styles.amountRow}>
-          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Total</Text>
-          <Text style={[styles.amountValue, { color: theme.colors.textPrimary }]}>
-            {formatAmount(item.montant)}
-          </Text>
+      {/* Section patient moderne */}
+      <View style={styles.patientSectionModern}>
+        <View style={styles.patientRow}>
+          <View style={[styles.patientIconContainer, { backgroundColor: theme.colors.primary + '15' }]}>
+            <Ionicons name="person" size={18} color={theme.colors.primary} />
+          </View>
+          <View style={styles.patientInfoModern}>
+            <Text style={[styles.patientNameModern, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+              {item.beneficiaire_prenom} {item.beneficiaire_nom}
+            </Text>
+            <Text style={[styles.patientMatriculeModern, { color: theme.colors.textSecondary }]}>
+              Matricule: {item.matricule_assure || 'Non renseigné'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.amountRow}>
-          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Assurance</Text>
-          <Text style={[styles.amountValue, { color: '#3d8f9d' }]}>
-            {formatAmount(item.part_assurance)}
-          </Text>
-        </View>
-        <View style={styles.amountRow}>
-          <Text style={[styles.amountLabel, { color: theme.colors.textSecondary }]}>Patient</Text>
-          <Text style={[styles.amountValue, { color: '#FF9800' }]}>
-            {formatAmount(item.part_patient)}
-          </Text>
+      </View>
+
+      {/* Section montants moderne */}
+      <View style={styles.amountsSectionModern}>
+        <View style={styles.amountRowModern}>
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Total</Text>
+            <Text style={[styles.amountValueModern, { color: theme.colors.textPrimary }]}>
+              {formatAmount(item.montant)}
+            </Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Assurance</Text>
+            <Text style={[styles.amountValueModern, { color: '#3d8f9d' }]}>
+              {formatAmount(item.part_assurance)}
+            </Text>
+          </View>
+          <View style={styles.amountDivider} />
+          <View style={styles.amountItem}>
+            <Text style={[styles.amountLabelModern, { color: theme.colors.textSecondary }]}>Patient</Text>
+            <Text style={[styles.amountValueModern, { color: '#FF9800' }]}>
+              {formatAmount(item.part_patient)}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -372,7 +392,7 @@ const PrestationsByGarantieScreen: React.FC<PrestationsByGarantieScreenProps> = 
           />
         }
         onEndReached={loadMoreData}
-        onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.5}
         ListFooterComponent={() => {
           if (loading && !initialLoading) {
             return (
@@ -1255,6 +1275,112 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 6,
     opacity: 0.8,
+  },
+  
+  // Nouveaux styles modernes pour les cartes
+  prestationCardModern: {
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardHeaderModern: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainerModern: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  cardTitleModern: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateTextModern: {
+    fontSize: 13,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  
+  patientSectionModern: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  patientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  patientInfoModern: {
+    flex: 1,
+  },
+  patientNameModern: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  patientMatriculeModern: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+  
+  amountsSectionModern: {
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  amountRowModern: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  amountItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  amountLabelModern: {
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  amountValueModern: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  amountDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginHorizontal: 8,
   },
 });
 

@@ -23,7 +23,6 @@ import PrescriptionByGarantieScreen from '../screens/portail_prestataire/Prescri
 import PrescriptionEnAttenteScreen from '../screens/portail_prestataire/PrescriptionEnAttenteScreen';
 import PrestationsByGarantieScreen from '../screens/portail_prestataire/PrestationsByGarantieScreen';
 import PrestationsByFamilleScreen from '../screens/portail_prestataire/PrestationsByFamilleScreen';
-import PrestationsByBeneficiaireScreen from '../screens/portail_prestataire/PrestationsByBeneficiaireScreen';
 import PrestataireDrawerMenu from './PrestataireDrawerMenu';
 
 const Tab = createBottomTabNavigator();
@@ -45,8 +44,6 @@ function PrestataireTabNavigator() {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Prescriptions') {
             iconName = focused ? 'document' : 'document-outline';
-          } else if (route.name === 'Reports') {
-            iconName = focused ? 'document-text' : 'document-text-outline';
           } else if (route.name === 'Medicaments') {
             iconName = focused ? 'medical' : 'medical-outline';
           }
@@ -85,13 +82,6 @@ function PrestataireTabNavigator() {
         component={PrestatairePrescriptionsScreen}
         options={{
           title: 'Prescriptions',
-        }}
-      />
-      <Tab.Screen 
-        name="Reports" 
-        component={PrestataireReportsScreen}
-        options={{
-          title: 'Rapports',
         }}
       />
       <Tab.Screen 
@@ -144,7 +134,6 @@ const PrestataireNavigator: React.FC = () => {
         <Stack.Screen name="PrescriptionEnAttente" component={PrescriptionEnAttenteScreen} />
         <Stack.Screen name="PrestationsByGarantie" component={PrestationsByGarantieScreen} />
         <Stack.Screen name="PrestationsByFamille" component={PrestationsByFamilleScreen} />
-        <Stack.Screen name="PrestationsByBeneficiaire" component={PrestationsByBeneficiaireScreen} />
     </Stack.Navigator>
   );
 };
