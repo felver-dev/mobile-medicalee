@@ -19,7 +19,7 @@ export class ApiService {
 
     this.setupInterceptors();
     logger.info("ApiService initialisé", {
-      baseURL: CURRENT_ENV.apiBaseUrl,
+      baseURL: CURRENT_ENV.apiBaseUrl, 
       isDevelopment: this.isDevelopment,
     });
   }
@@ -180,7 +180,7 @@ export class ApiService {
 
   // Prestations
   async getPrestations(request: any): Promise<any> {
-    return this.makeRequest("POST", "/prestation/getByCriteria", request);
+    return this.makeRequest("POST", "/prestationActe/getByCriteria", request);
   }
 
   // Patients

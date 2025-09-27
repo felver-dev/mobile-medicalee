@@ -21,6 +21,9 @@ import PrestataireQuantitySelectionScreen from '../screens/portail_prestataire/P
 import PrestatairePrescriptionsScreen from '../screens/portail_prestataire/PrestatairePrescriptionsScreen';
 import PrescriptionByGarantieScreen from '../screens/portail_prestataire/PrescriptionByGarantieScreen';
 import PrescriptionEnAttenteScreen from '../screens/portail_prestataire/PrescriptionEnAttenteScreen';
+import PrestationsByGarantieScreen from '../screens/portail_prestataire/PrestationsByGarantieScreen';
+import PrestationsByFamilleScreen from '../screens/portail_prestataire/PrestationsByFamilleScreen';
+import PrestationsByBeneficiaireScreen from '../screens/portail_prestataire/PrestationsByBeneficiaireScreen';
 import PrestataireDrawerMenu from './PrestataireDrawerMenu';
 
 const Tab = createBottomTabNavigator();
@@ -137,8 +140,11 @@ const PrestataireNavigator: React.FC = () => {
       <Stack.Screen name="MedicamentDetails" component={MedicamentDetailsScreen} />
       <Stack.Screen name="ServeMedicaments" component={PrestataireServeMedicamentsScreen} />
       <Stack.Screen name="QuantitySelection" component={PrestataireQuantitySelectionScreen} />
-      <Stack.Screen name="PrescriptionByGarantie" component={PrescriptionByGarantieScreen} />
-      <Stack.Screen name="PrescriptionEnAttente" component={PrescriptionEnAttenteScreen} />
+        <Stack.Screen name="PrescriptionByGarantie" component={PrescriptionByGarantieScreen} />
+        <Stack.Screen name="PrescriptionEnAttente" component={PrescriptionEnAttenteScreen} />
+        <Stack.Screen name="PrestationsByGarantie" component={PrestationsByGarantieScreen} />
+        <Stack.Screen name="PrestationsByFamille" component={PrestationsByFamilleScreen} />
+        <Stack.Screen name="PrestationsByBeneficiaire" component={PrestationsByBeneficiaireScreen} />
     </Stack.Navigator>
   );
 };
