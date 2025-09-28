@@ -10,8 +10,7 @@ import {
   TextInput,
   Dimensions,
   ScrollView,
-  Platform,
-  ActivityIndicator
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
@@ -21,7 +20,7 @@ import { usePrestataireTheme } from '../../context/PrestataireThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ApiService from '../../services/ApiService';
 
-interface PrestatairePrescriptionsScreenProps {
+interface PrescriptionEntentePrealableScreenProps {
   navigation: any;
 }
 
@@ -50,15 +49,12 @@ interface PrescriptionFilters {
 
 const { width } = Dimensions.get('window');
 
-const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenProps> = ({ navigation }) => {
+const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const { theme } = usePrestataireTheme();
   const [apiService] = useState(() => new ApiService());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showMenuModal, setShowMenuModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const [filteredPrescriptions, setFilteredPrescriptions] = useState<PrescriptionItem[]>([]);
@@ -74,143 +70,82 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
   const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
   const [showDateFinPicker, setShowDateFinPicker] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionItem | null>(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  
-  const pageSize = 10;
 
-  const prescriptionOptions = [
-    {
-      id: 'garantie',
-      title: 'Par Garantie',
-      subtitle: 'Voir par type de garantie',
-      icon: 'shield-checkmark-outline',
-      color: '#4CAF50',
-      bgColor: '#E8F5E8',
-      route: 'PrescriptionByGarantie'
-    },
-    {
-      id: 'entente',
-      title: 'Entente Préalable',
-      subtitle: 'Consulter les ententes préalables',
-      icon: 'time-outline',
-      color: '#FF9800',
-      bgColor: '#FFF3E0',
-      route: 'PrescriptionEntentePrealable'
-    }
-  ];
-
-  const handleOptionPress = (route: string) => {
-    console.log('Navigation vers:', route);
-    setShowMenuModal(false);
-    navigation.navigate(route);
-  };
-
-  const loadData = useCallback(async (page = 0, isRefresh = false) => {
+  const loadData = useCallback(async (page = 0, reset = false) => {
     if (!user) return;
     
     try {
-      if (isRefresh) {
-        setLoading(true);
+      if (page === 0) {
+        setInitialLoading(true);
       } else {
-        setLoadingMore(true);
+        setLoading(true);
       }
       setError(null);
 
       const payload = {
-        user_id: user.id,
-        filiale_id: user.filiale_id,
+        user_id: user.id, // ID de l'utilisateur connecté (49)
+        filiale_id: user.filiale_id, // Filiale de l'utilisateur (1)
         date_debut: `${filters.dateDebut.toISOString().split('T')[0]}T00:00:00.000Z`,
         date_fin: `${filters.dateFin.toISOString().split('T')[0]}T00:00:00.000Z`,
         data: {
-          prestataire_id: user.prestataire_id
+          prestataire_id: user.prestataire_id, // ID du prestataire (5) pour récupérer les 97 éléments
+          is_entente_prealable: 1 // Filtrer pour les ententes préalables
         },
-        index: page * pageSize,
-        size: pageSize
+        index: page * 10,
+        size: 10
       };
 
-      console.log('Chargement des prescriptions - Page:', page, 'Payload:', payload);
+      console.log('Chargement des ententes préalables - Page:', page, 'Payload:', payload);
 
       const response = await apiService.getPrescriptionActes(payload);
-      console.log('Réponse API prescriptions:', response);
-      console.log('📊 Nombre d\'éléments reçus:', response?.items?.length || 0);
-      console.log('📊 Total disponible:', response?.count || 0);
+      console.log('Réponse API ententes préalables:', response);
 
       if (response && response.items) {
-        if (isRefresh) {
+        if (reset || page === 0) {
           setPrescriptions(response.items);
           setFilteredPrescriptions(response.items);
         } else {
-          const newPrescriptions = [...prescriptions, ...response.items];
-          setPrescriptions(newPrescriptions);
-          setFilteredPrescriptions(newPrescriptions);
+          setPrescriptions(prev => [...prev, ...response.items]);
+          setFilteredPrescriptions(prev => [...prev, ...response.items]);
         }
         
-        setTotalItems(response.count || 0);
+        setHasMoreData(response.items.length === 10);
         setCurrentPage(page);
-        
-        // Logique corrigée pour la pagination
-        const totalLoaded = (page + 1) * pageSize;
-        setHasMoreData(response.items.length === pageSize && totalLoaded < (response.count || 0));
-        
-        console.log('📈 État après chargement:');
-        console.log('📈 Éléments reçus:', response.items.length);
-        console.log('📈 Total items:', response.count || 0);
-        console.log('📈 Total chargé:', totalLoaded);
-        console.log('📈 HasMoreData:', response.items.length === pageSize && totalLoaded < (response.count || 0));
-        console.log('📈 CurrentPage:', page);
       } else {
-        if (isRefresh) {
+        if (reset || page === 0) {
           setPrescriptions([]);
           setFilteredPrescriptions([]);
         }
         setHasMoreData(false);
       }
     } catch (err) {
-      console.error('Erreur lors du chargement des prescriptions:', err);
-      setError('Erreur lors du chargement des prescriptions');
-      if (isRefresh) {
+      console.error('Erreur lors du chargement des ententes préalables:', err);
+      setError('Erreur lors du chargement des ententes préalables');
+      if (reset || page === 0) {
         setPrescriptions([]);
         setFilteredPrescriptions([]);
       }
     } finally {
       setLoading(false);
-      setLoadingMore(false);
       setInitialLoading(false);
     }
-  }, [user, filters, apiService, pageSize, prescriptions]);
+  }, [user, filters, apiService]);
 
   const loadMoreData = useCallback(() => {
-    console.log('🔄 loadMoreData appelé:');
-    console.log('🔄 LoadingMore:', loadingMore);
-    console.log('🔄 HasMoreData:', hasMoreData);
-    console.log('🔄 CurrentPage:', currentPage);
-    console.log('🔄 Prescriptions actuelles:', prescriptions.length);
-    console.log('🔄 Total items:', totalItems);
-    
-    if (!loadingMore && hasMoreData && prescriptions.length < totalItems) {
-      const nextPage = currentPage + 1;
-      console.log('✅ Chargement de plus de prescriptions - Page suivante:', nextPage);
-      loadData(nextPage, false);
-    } else {
-      console.log('❌ Pas de chargement - LoadingMore:', loadingMore, 'HasMoreData:', hasMoreData, 'Total:', totalItems);
+    if (!loading && hasMoreData) {
+      console.log('Chargement de plus d\'ententes préalables - Page suivante:', currentPage + 1);
+      loadData(currentPage + 1, false);
     }
-  }, [currentPage, loadingMore, hasMoreData, loadData, prescriptions.length, totalItems]);
+  }, [loading, hasMoreData, currentPage, loadData]);
 
   const onRefresh = useCallback(() => {
-    console.log('Rafraîchissement des prescriptions');
-    setRefreshing(true);
+    console.log('Rafraîchissement des ententes préalables');
     setCurrentPage(0);
-    setPrescriptions([]);
-    setFilteredPrescriptions([]);
-    setTotalItems(0);
     setHasMoreData(true);
     loadData(0, true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
   }, [loadData]);
 
   const handleDateDebutChange = (event: any, selectedDate?: Date) => {
@@ -231,10 +166,10 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
     setFilters(tempFilters);
     setShowFilterModal(false);
     setCurrentPage(0);
+    setHasMoreData(true);
     setPrescriptions([]);
     setFilteredPrescriptions([]);
-    setTotalItems(0);
-    setHasMoreData(true);
+    setInitialLoading(true);
     loadData(0, true);
   };
 
@@ -289,7 +224,6 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
   };
 
   useEffect(() => {
-    console.log('🚀 Chargement initial des prescriptions');
     loadData(0, true);
   }, []);
 
@@ -304,11 +238,11 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
     >
       <View style={styles.prescriptionHeader}>
         <View style={styles.prescriptionIcon}>
-          <Ionicons name="medical" size={20} color={theme.colors.primary} />
+          <Ionicons name="time" size={20} color="#FF9800" />
         </View>
         <View style={styles.prescriptionInfo}>
           <Text style={[styles.patientName, { color: theme.colors.textPrimary }]}>
-            {item.beneficiaire_prenom || ''} {item.beneficiaire_nom || ''}
+            {item.beneficiaire_prenom} {item.beneficiaire_nom}
           </Text>
           <Text style={[styles.matriculeText, { color: theme.colors.textSecondary }]}>
             Matricule: {item.beneficiaire_matricule || 'Non renseigné'}
@@ -349,10 +283,10 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
       return (
         <View style={styles.loadingContainer}>
           <View style={styles.loadingIcon}>
-            <Ionicons name="medical" size={40} color={theme.colors.primary} />
+            <Ionicons name="time" size={40} color="#FF9800" />
           </View>
           <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Chargement des prescriptions...
+            Chargement des ententes préalables...
           </Text>
         </View>
       );
@@ -378,9 +312,9 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
     if (filteredPrescriptions.length === 0) {
       return (
         <View style={styles.emptyState}>
-          <Ionicons name="document-outline" size={60} color={theme.colors.textSecondary} />
+          <Ionicons name="time-outline" size={60} color={theme.colors.textSecondary} />
           <Text style={[styles.emptyStateText, { color: theme.colors.textPrimary }]}>
-            Aucune prescription trouvée
+            Aucune entente préalable trouvée
           </Text>
           <Text style={[styles.emptyStateSubtext, { color: theme.colors.textSecondary }]}>
             Ajustez vos filtres ou vérifiez votre connexion
@@ -389,16 +323,6 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
       );
     }
 
-    const renderFooter = () => {
-      if (!loadingMore) return null;
-      return (
-        <View style={styles.footerLoader}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>Chargement...</Text>
-        </View>
-      );
-    };
-
     return (
       <FlatList
         data={filteredPrescriptions}
@@ -406,18 +330,16 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
         keyExtractor={(item) => item.id.toString()}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={loading}
             onRefresh={onRefresh}
             colors={[theme.colors.primary]}
             tintColor={theme.colors.primary}
           />
         }
         onEndReached={loadMoreData}
-        onEndReachedThreshold={0.1}
-        ListFooterComponent={renderFooter}
+        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
-        removeClippedSubviews={false}
       />
     );
   };
@@ -432,17 +354,17 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
       <View style={[styles.header, { backgroundColor: theme.colors.primary, paddingTop: headerTopPadding }]}>
         <View style={styles.topBar}>
           <TouchableOpacity 
+            style={[styles.backButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Ententes Préalables</Text>
+          <TouchableOpacity 
             style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
             onPress={() => setShowFilterModal(true)}
           >
             <Ionicons name="filter" size={20} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Prescriptions</Text>
-          <TouchableOpacity 
-            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            onPress={() => setShowMenuModal(true)}
-          >
-            <Ionicons name="menu" size={20} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -527,62 +449,6 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
         </View>
       </Modal>
 
-      {/* Menu Modal */}
-      <Modal
-        visible={showMenuModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowMenuModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
-                Options Prescriptions
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowMenuModal(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              {prescriptionOptions.map((option, index) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionCard,
-                    { 
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                    }
-                  ]}
-                  onPress={() => handleOptionPress(option.route)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: option.bgColor }]}>
-                    <Ionicons name={option.icon as any} size={24} color={option.color} />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, { color: theme.colors.textPrimary }]}>
-                      {option.title}
-                    </Text>
-                    <Text style={[styles.optionSubtitle, { color: theme.colors.textSecondary }]}>
-                      {option.subtitle}
-                    </Text>
-                  </View>
-                  <View style={styles.arrowContainer}>
-                    <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Prescription Details Modal */}
       <Modal
         visible={showPrescriptionModal}
@@ -594,7 +460,7 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
-                Détails de la prescription
+                Détails de l'entente préalable
               </Text>
               <TouchableOpacity
                 onPress={() => setShowPrescriptionModal(false)}
@@ -737,14 +603,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
-  filterButton: {
+  backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuButton: {
+  filterButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -770,7 +636,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#FFF3E0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -832,7 +698,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#FFF3E0',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -944,36 +810,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  optionSubtitle: {
-    fontSize: 14,
-  },
-  arrowContainer: {
-    marginLeft: 8,
-  },
   detailSection: {
     marginBottom: 16,
   },
@@ -984,14 +820,6 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
   },
-  footerLoader: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  footerText: {
-    marginTop: 8,
-    fontSize: 14,
-  },
 });
 
-export default PrestatairePrescriptionsScreen;
+export default PrescriptionEntentePrealableScreen;

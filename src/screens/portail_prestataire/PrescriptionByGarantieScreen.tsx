@@ -61,6 +61,9 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  
+  const pageSize = 10;
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<GarantieFilter>({
     garantie: '',
@@ -79,6 +82,9 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(0);
+    setPrescriptions([]);
+    setFilteredPrescriptions([]);
+    setTotalItems(0);
     setHasMoreData(true);
     loadData(0, false);
     setTimeout(() => {
@@ -87,11 +93,21 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   }, []);
 
   const loadMoreData = useCallback(() => {
-    if (!loadingMore && hasMoreData) {
-      console.log('🔄 Chargement de la page suivante:', currentPage + 1);
-      loadData(currentPage + 1, true);
+    console.log('🔄 loadMoreData appelé:');
+    console.log('🔄 LoadingMore:', loadingMore);
+    console.log('🔄 HasMoreData:', hasMoreData);
+    console.log('🔄 CurrentPage:', currentPage);
+    console.log('🔄 Prescriptions actuelles:', prescriptions.length);
+    console.log('🔄 Total items:', totalItems);
+    
+    if (!loadingMore && hasMoreData && prescriptions.length < totalItems) {
+      const nextPage = currentPage + 1;
+      console.log('✅ Chargement de plus de prescriptions - Page suivante:', nextPage);
+      loadData(nextPage, true);
+    } else {
+      console.log('❌ Pas de chargement - LoadingMore:', loadingMore, 'HasMoreData:', hasMoreData, 'Total:', totalItems);
     }
-  }, [loadingMore, hasMoreData, currentPage]);
+  }, [currentPage, loadingMore, hasMoreData, loadData, prescriptions.length, totalItems]);
 
   const loadData = useCallback(async (page: number = 0, append: boolean = false) => {
     if (!user) {
@@ -123,8 +139,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
         prestataireId: user.prestataire_id || undefined,
         dateDebut,
         dateFin,
-        index: page * 20,
-        size: 20,
+        index: page * pageSize,
+        size: pageSize,
       };
 
       console.log('📦 Paramètres API:', apiParams);
@@ -166,12 +182,19 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
           setFilteredPrescriptions(prescriptionsData);
         }
 
-        // Vérifier s'il y a plus de données
-        setHasMoreData(prescriptionsData.length === 20);
+        // Logique de hasMoreData corrigée
+        setTotalItems(response.count || 0);
         setCurrentPage(page);
         
-        console.log('✅ Prescriptions chargées:', prescriptionsData.length, 'Total:', append ? prescriptions.length + prescriptionsData.length : prescriptionsData.length);
-        console.log('📋 Première prescription:', prescriptionsData[0]);
+        const totalLoaded = (page + 1) * pageSize;
+        setHasMoreData(prescriptionsData.length === pageSize && totalLoaded < (response.count || 0));
+        
+        console.log('📈 État après chargement:');
+        console.log('📈 Éléments reçus:', prescriptionsData.length);
+        console.log('📈 Total items:', response.count || 0);
+        console.log('📈 Total chargé:', totalLoaded);
+        console.log('📈 HasMoreData:', prescriptionsData.length === pageSize && totalLoaded < (response.count || 0));
+        console.log('📈 CurrentPage:', page);
       } else {
         if (!append) {
           setPrescriptions([]);
@@ -494,16 +517,18 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
               showsVerticalScrollIndicator={false}
               onEndReached={loadMoreData}
               onEndReachedThreshold={0.1}
-              ListFooterComponent={() => (
-                loadingMore ? (
+              ListFooterComponent={() => {
+                if (!loadingMore) return null;
+                return (
                   <View style={styles.loadingMoreContainer}>
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                     <Text style={[styles.loadingMoreText, { color: theme.colors.textSecondary }]}>
                       Chargement...
                     </Text>
                   </View>
-                ) : null
-              )}
+                );
+              }}
+              removeClippedSubviews={false}
             />
           )}
         </View>
