@@ -68,8 +68,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<GarantieFilter>({
     garantie: undefined,
-    dateDebut: '',
-    dateFin: '',
+    dateDebut: '2025-01-01',
+    dateFin: '2025-09-30',
     matriculeAssure: ''
   });
   const [showGarantiePicker, setShowGarantiePicker] = useState(false);
@@ -129,8 +129,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
 
       // Utiliser les dates par défaut si non définies
       const today = new Date();
-      const dateDebut = filters.dateDebut || today.toISOString().split('T')[0];
-      const dateFin = filters.dateFin || today.toISOString().split('T')[0];
+      const dateDebut = filters.dateDebut || '2025-01-01';
+      const dateFin = filters.dateFin || '2025-09-30';
 
       const apiParams = {
         userId: Number(user.id),
@@ -165,16 +165,16 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
             id: item.id,
             beneficiaire_nom: item.beneficiaire_nom || 'Non renseigné',
             beneficiaire_prenom: item.beneficiaire_prenom || 'Non renseigné',
-            beneficiaire_matricule: item.beneficiaire_matricule || 'Non renseigné',
+            beneficiaire_matricule: item.beneficiaire_matricule || item.matricule || 'Non renseigné',
             medicament_libelle: item.medicament_libelle || item.libelle || 'Non renseigné',
             quantite: item.quantite || 0,
             posologie: item.posologie || 'Non renseigné',
             date_prescription: item.date_prescription || item.created_at,
-            statut: item.statut || 'En attente',
+            statut: item.is_entente_prealable ? 'Entente préalable' : (item.is_exclu ? 'Exclu' : 'En attente'),
             garantie_libelle: item.garantie_libelle || 'Non renseigné',
             montant: item.montant || (item.prix_unitaire ? item.prix_unitaire * item.quantite : undefined),
             prix_unitaire: item.prix_unitaire,
-            details: item.details || 'Non renseigné'
+            details: item.observation || 'Non renseigné'
           }));
 
         if (append) {
@@ -278,8 +278,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const clearFilters = () => {
     setFilters({
       garantie: undefined,
-      dateDebut: '',
-      dateFin: '',
+      dateDebut: '2025-01-01',
+      dateFin: '2025-09-30',
       matriculeAssure: ''
     });
     setCurrentPage(0);
@@ -294,6 +294,10 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
         return '#FF9800';
       case 'refusée':
         return '#F44336';
+      case 'entente préalable':
+        return '#2196F3';
+      case 'exclu':
+        return '#F44336';
       default:
         return theme.colors.textSecondary;
     }
@@ -306,6 +310,10 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       case 'en attente':
         return '#FFF3E0';
       case 'refusée':
+        return '#FFEBEE';
+      case 'entente préalable':
+        return '#E3F2FD';
+      case 'exclu':
         return '#FFEBEE';
       default:
         return theme.colors.background;
@@ -326,7 +334,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   };
 
   const formatAmount = (amount?: number) => {
-    if (!amount || amount === 0) return 'N/A';
+    if (!amount || amount === 0) return 'Non renseigné';
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'XOF'
