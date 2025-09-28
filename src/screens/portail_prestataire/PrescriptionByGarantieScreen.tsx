@@ -44,7 +44,7 @@ interface PrescriptionItem {
 }
 
 interface GarantieFilter {
-  garantie: string;
+  garantie: string | undefined;
   dateDebut: string;
   dateFin: string;
   matriculeAssure: string;
@@ -67,7 +67,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   const pageSize = 10;
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<GarantieFilter>({
-    garantie: '',
+    garantie: undefined,
     dateDebut: '',
     dateFin: '',
     matriculeAssure: ''
@@ -135,7 +135,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       const apiParams = {
         userId: Number(user.id),
         filialeId: user.filiale_id || 1,
-        garantieCodification: filters.garantie && filters.garantie !== '' ? filters.garantie : undefined,
+        garantieCodification: filters.garantie && filters.garantie !== '' && filters.garantie !== undefined ? filters.garantie : undefined,
         matriculeAssure: filters.matriculeAssure ? Number(filters.matriculeAssure) : undefined,
         prestataireId: user.prestataire_id || undefined,
         dateDebut,
@@ -145,6 +145,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       };
 
       console.log('📦 Paramètres API:', apiParams);
+      console.log('🔍 Filtres actuels:', filters);
 
       const response = await apiService.getPrescriptionActeByCriteria(apiParams);
 
@@ -218,7 +219,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
       setLoadingMore(false);
       setInitialLoading(false);
     }
-  }, [user, filters, apiService]);
+  }, [user, apiService]);
 
   useEffect(() => {
     if (user) {
@@ -266,9 +267,17 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
     }
   };
 
+  const applyFilters = () => {
+    setCurrentPage(0);
+    setPrescriptions([]);
+    setFilteredPrescriptions([]);
+    setHasMoreData(true);
+    loadData(0, false);
+  };
+
   const clearFilters = () => {
     setFilters({
-      garantie: '',
+      garantie: undefined,
       dateDebut: '',
       dateFin: '',
       matriculeAssure: ''
@@ -575,8 +584,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                     style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
                     onPress={() => setShowGarantiePicker(true)}
                   >
-                    <Text style={[styles.filterInputText, { color: filters.garantie ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
-                      {filters.garantie ? GARANTIES_WITH_ALL.find(g => g.code === filters.garantie)?.libelle : 'Sélectionner une garantie'}
+                    <Text style={[styles.filterInputText, { color: filters.garantie !== undefined ? theme.colors.textPrimary : theme.colors.textSecondary }]}>
+                      {filters.garantie !== undefined ? GARANTIES_WITH_ALL.find(g => g.code === filters.garantie)?.libelle : 'Sélectionner une garantie'}
                     </Text>
                     <Ionicons name="chevron-down" size={16} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
@@ -632,9 +641,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
               <TouchableOpacity 
                 style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => {
-                  setCurrentPage(0);
-                  setHasMoreData(true);
-                  loadData(0, false);
+                  applyFilters();
                   setShowFilters(false);
                 }}
               >
