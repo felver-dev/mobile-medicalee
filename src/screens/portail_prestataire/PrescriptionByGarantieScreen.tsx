@@ -39,6 +39,7 @@ interface PrescriptionItem {
   statut: string;
   garantie_libelle: string;
   montant?: number;
+  prix_unitaire?: number;
   details?: string;
 }
 
@@ -170,7 +171,8 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
             date_prescription: item.date_prescription || item.created_at,
             statut: item.statut || 'En attente',
             garantie_libelle: item.garantie_libelle || 'Non renseigné',
-            montant: item.montant,
+            montant: item.montant || (item.prix_unitaire ? item.prix_unitaire * item.quantite : undefined),
+            prix_unitaire: item.prix_unitaire,
             details: item.details || 'Non renseigné'
           }));
 
@@ -315,8 +317,11 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
   };
 
   const formatAmount = (amount?: number) => {
-    if (!amount) return 'Non renseigné';
-    return `${amount.toLocaleString('fr-FR')} FCFA`;
+    if (!amount || amount === 0) return 'N/A';
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XOF'
+    }).format(amount);
   };
 
   const renderPrescription = ({ item }: { item: PrescriptionItem }) => (
@@ -486,19 +491,6 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                   ? 'Essayez de modifier vos filtres' 
                   : 'Aucune prescription disponible pour le moment'}
               </Text>
-              
-              {/* Bouton de test pour forcer le chargement */}
-              <TouchableOpacity 
-                style={[styles.testButton, { backgroundColor: theme.colors.primary }]}
-                onPress={() => {
-                  console.log('🧪 Test manuel - Rechargement des données');
-                  setCurrentPage(0);
-                  setHasMoreData(true);
-                  loadData(0, false);
-                }}
-              >
-                <Text style={styles.testButtonText}>Tester le chargement</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <FlatList
@@ -673,7 +665,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                 <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.garantiePickerContainer}>
+            <ScrollView style={styles.garantiePickerContainer}>
               {GARANTIES_WITH_ALL.map((garantie) => (
                 <TouchableOpacity
                   key={garantie.code}
@@ -697,7 +689,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
                   )}
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -928,6 +920,7 @@ const styles = StyleSheet.create({
   },
   garantiePickerContainer: {
     paddingVertical: 10,
+    maxHeight: 400,
   },
   garantiePickerItem: {
     flexDirection: 'row',
@@ -1135,18 +1128,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 40,
-  },
-  testButton: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: 'center',
-  },
-  testButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   // Styles pour le modal de détails de prescription
   prescriptionModalContent: {

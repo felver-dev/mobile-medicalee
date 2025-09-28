@@ -15,7 +15,7 @@ export const GARANTIES: Garantie[] = [
   { code: 'IMA', libelle: 'Imagerie & examens spécialisés' },
   { code: 'MAT', libelle: 'Maternité' },
   { code: 'OPT', libelle: 'Optique' },
-  { code: 'PHARMA', libelle: 'Pharmacie' },
+  { code: 'PHARMA', libelle: 'PHARMACIE' },
   { code: 'TRA', libelle: 'Transport médicalisé' }
 ];
 
