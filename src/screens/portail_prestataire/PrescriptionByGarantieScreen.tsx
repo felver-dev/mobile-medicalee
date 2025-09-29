@@ -101,14 +101,14 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
     console.log('🔄 Prescriptions actuelles:', prescriptions.length);
     console.log('🔄 Total items:', totalItems);
     
-    if (!loadingMore && hasMoreData && prescriptions.length < totalItems) {
+    if (!loadingMore && hasMoreData) {
       const nextPage = currentPage + 1;
       console.log('✅ Chargement de plus de prescriptions - Page suivante:', nextPage);
       loadData(nextPage, true);
     } else {
       console.log('❌ Pas de chargement - LoadingMore:', loadingMore, 'HasMoreData:', hasMoreData, 'Total:', totalItems);
     }
-  }, [currentPage, loadingMore, hasMoreData, loadData, prescriptions.length, totalItems]);
+  }, [currentPage, loadingMore, hasMoreData, loadData]);
 
   const loadData = useCallback(async (page: number = 0, append: boolean = false) => {
     if (!user) {
@@ -185,18 +185,18 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
           setFilteredPrescriptions(prescriptionsData);
         }
 
-        // Logique de hasMoreData corrigée
+        // Logique de hasMoreData corrigée (copiée de MedicamentsScreen)
         setTotalItems(response.count || 0);
         setCurrentPage(page);
         
         const totalLoaded = (page + 1) * pageSize;
-        setHasMoreData(prescriptionsData.length === pageSize && totalLoaded < (response.count || 0));
+        setHasMoreData(totalLoaded < (response.count || 0));
         
         console.log('📈 État après chargement:');
         console.log('📈 Éléments reçus:', prescriptionsData.length);
         console.log('📈 Total items:', response.count || 0);
         console.log('📈 Total chargé:', totalLoaded);
-        console.log('📈 HasMoreData:', prescriptionsData.length === pageSize && totalLoaded < (response.count || 0));
+        console.log('📈 HasMoreData:', totalLoaded < (response.count || 0));
         console.log('📈 CurrentPage:', page);
       } else {
         if (!append) {
@@ -525,7 +525,7 @@ const PrescriptionByGarantieScreen: React.FC<PrescriptionByGarantieScreenProps> 
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               onEndReached={loadMoreData}
-              onEndReachedThreshold={0.1}
+              onEndReachedThreshold={0.5}
               ListFooterComponent={() => {
                 if (!loadingMore) return null;
                 return (

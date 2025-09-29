@@ -432,17 +432,28 @@ const PrestatairePrescriptionsScreen: React.FC<PrestatairePrescriptionsScreenPro
       <View style={[styles.header, { backgroundColor: theme.colors.primary, paddingTop: headerTopPadding }]}>
         <View style={styles.topBar}>
           <TouchableOpacity 
-            style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            onPress={() => navigation.openDrawer()}
+          >
+            <Ionicons name="menu" size={20} color="white" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Prescriptions</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredPrescriptions.length} prescription{filteredPrescriptions.length > 1 ? 's' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={[styles.headerFilterButton, { backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 0 }]}
             onPress={() => setShowFilterModal(true)}
           >
             <Ionicons name="filter" size={20} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Prescriptions</Text>
           <TouchableOpacity 
             style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
             onPress={() => setShowMenuModal(true)}
           >
-            <Ionicons name="menu" size={20} color="white" />
+            <Ionicons name="ellipsis-vertical" size={20} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -732,17 +743,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    marginBottom: 2,
   },
-  filterButton: {
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  headerFilterButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   menuButton: {
     width: 40,

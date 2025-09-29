@@ -59,12 +59,12 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const [filteredPrescriptions, setFilteredPrescriptions] = useState<PrescriptionItem[]>([]);
   const [filters, setFilters] = useState<PrescriptionFilters>({
-    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
-    dateFin: new Date()
+    dateDebut: new Date('2025-01-01'),
+    dateFin: new Date('2025-09-30')
   });
   const [tempFilters, setTempFilters] = useState<PrescriptionFilters>({
-    dateDebut: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours avant
-    dateFin: new Date()
+    dateDebut: new Date('2025-01-01'),
+    dateFin: new Date('2025-09-30')
   });
   const [error, setError] = useState<string | null>(null);
   const [showDateDebutPicker, setShowDateDebutPicker] = useState(false);
@@ -112,7 +112,9 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
           setFilteredPrescriptions(prev => [...prev, ...response.items]);
         }
         
-        setHasMoreData(response.items.length === 10);
+        // Logique de hasMoreData corrigée (copiée de MedicamentsScreen)
+        const totalLoaded = (page + 1) * 10;
+        setHasMoreData(totalLoaded < (response.count || 0));
         setCurrentPage(page);
       } else {
         if (reset || page === 0) {
@@ -199,7 +201,7 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
   };
 
   const getStatusText = (status: string) => {
-    if (!status) return 'Inconnu';
+    if (!status) return 'Non enregistré';
     return status;
   };
 
@@ -272,7 +274,7 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
           Qté: {item.quantite}
         </Text>
         <Text style={[styles.priceText, { color: theme.colors.primary }]}>
-          {item.prix_unitaire ? formatCurrency(item.prix_unitaire * item.quantite) : 'N/A'}
+          {item.prix_unitaire ? formatCurrency(item.prix_unitaire * item.quantite) : 'Non renseigné'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -522,7 +524,7 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
                     Prix unitaire
                   </Text>
                   <Text style={[styles.detailValue, { color: theme.colors.textPrimary }]}>
-                    {selectedPrescription.prix_unitaire ? formatCurrency(selectedPrescription.prix_unitaire) : 'N/A'}
+                    {selectedPrescription.prix_unitaire ? formatCurrency(selectedPrescription.prix_unitaire) : 'Non renseigné'}
                   </Text>
                 </View>
 
@@ -531,7 +533,7 @@ const PrescriptionEntentePrealableScreen: React.FC<PrescriptionEntentePrealableS
                     Total
                   </Text>
                   <Text style={[styles.detailValue, { color: theme.colors.primary, fontWeight: 'bold' }]}>
-                    {selectedPrescription.prix_unitaire ? formatCurrency(selectedPrescription.prix_unitaire * selectedPrescription.quantite) : 'N/A'}
+                    {selectedPrescription.prix_unitaire ? formatCurrency(selectedPrescription.prix_unitaire * selectedPrescription.quantite) : 'Non renseigné'}
                   </Text>
                 </View>
 

@@ -9,7 +9,6 @@ import { usePrestataireTheme } from '../context/PrestataireThemeContext';
 // Screens
 import PrestataireLoginScreen from '../screens/portail_prestataire/PrestataireLoginScreen';
 import PrestataireHomeScreen from '../screens/portail_prestataire/PrestataireHomeScreen';
-import PrestataireDashboardScreen from '../screens/portail_prestataire/PrestataireDashboardScreen';
 import PrestatairePrestationsScreen from '../screens/portail_prestataire/PrestatairePrestationsScreen';
 import PrestataireReportsScreen from '../screens/portail_prestataire/PrestataireReportsScreen';
 import PrestataireProfileScreen from '../screens/portail_prestataire/PrestataireProfileScreen';
@@ -19,6 +18,9 @@ import MedicamentDetailsScreen from '../screens/portail_assure/MedicamentDetails
 import PrestataireServeMedicamentsScreen from '../screens/portail_prestataire/PrestataireServeMedicamentsScreen';
 import PrestataireQuantitySelectionScreen from '../screens/portail_prestataire/PrestataireQuantitySelectionScreen';
 import PrestatairePrescriptionsScreen from '../screens/portail_prestataire/PrestatairePrescriptionsScreen';
+import PrestataireOrdonnancesScreen from '../screens/portail_prestataire/PrestataireOrdonnancesScreen';
+import OrdonnanceByGarantieScreen from '../screens/portail_prestataire/OrdonnanceByGarantieScreen';
+import OrdonnanceByAssureScreen from '../screens/portail_prestataire/OrdonnanceByAssureScreen';
 import PrescriptionByGarantieScreen from '../screens/portail_prestataire/PrescriptionByGarantieScreen';
 import PrescriptionEnAttenteScreen from '../screens/portail_prestataire/PrescriptionEnAttenteScreen';
 import PrescriptionEntentePrealableScreen from '../screens/portail_prestataire/PrescriptionEntentePrealableScreen';
@@ -39,12 +41,12 @@ function PrestataireTabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'help-outline';
 
-          if (route.name === 'Dashboard') {
-            iconName = focused ? 'analytics' : 'analytics-outline';
-          } else if (route.name === 'Prestations') {
+          if (route.name === 'Prestations') {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Prescriptions') {
             iconName = focused ? 'document' : 'document-outline';
+          } else if (route.name === 'Ordonnances') {
+            iconName = focused ? 'clipboard' : 'clipboard-outline';
           } else if (route.name === 'Medicaments') {
             iconName = focused ? 'medical' : 'medical-outline';
           }
@@ -65,13 +67,6 @@ function PrestataireTabNavigator() {
       })}
     >
       <Tab.Screen 
-        name="Dashboard" 
-        component={PrestataireDashboardScreen}
-        options={{
-          title: 'Dashboard',
-        }}
-      />
-      <Tab.Screen 
         name="Prestations" 
         component={PrestatairePrestationsScreen}
         options={{
@@ -83,6 +78,13 @@ function PrestataireTabNavigator() {
         component={PrestatairePrescriptionsScreen}
         options={{
           title: 'Prescriptions',
+        }}
+      />
+      <Tab.Screen 
+        name="Ordonnances" 
+        component={PrestataireOrdonnancesScreen}
+        options={{
+          title: 'Ordonnances',
         }}
       />
       <Tab.Screen 
@@ -136,6 +138,8 @@ const PrestataireNavigator: React.FC = () => {
         <Stack.Screen name="PrescriptionEntentePrealable" component={PrescriptionEntentePrealableScreen} />
         <Stack.Screen name="PrestationsByGarantie" component={PrestationsByGarantieScreen} />
         <Stack.Screen name="PrestationsByFamille" component={PrestationsByFamilleScreen} />
+        <Stack.Screen name="OrdonnanceByGarantie" component={OrdonnanceByGarantieScreen} />
+        <Stack.Screen name="OrdonnanceByAssure" component={OrdonnanceByAssureScreen} />
     </Stack.Navigator>
   );
 };
