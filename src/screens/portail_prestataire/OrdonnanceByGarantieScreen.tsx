@@ -47,7 +47,6 @@ interface GarantieFilter {
   garantie: string | undefined;
   dateDebut: string;
   dateFin: string;
-  matriculeAssure: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -66,14 +65,12 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
   const [filters, setFilters] = useState<GarantieFilter>({
     garantie: undefined,
     dateDebut: '2025-01-01',
-    dateFin: '2025-09-30',
-    matriculeAssure: ''
+    dateFin: '2025-09-30'
   });
   const [tempFilters, setTempFilters] = useState<GarantieFilter>({
     garantie: undefined,
     dateDebut: '2025-01-01',
-    dateFin: '2025-09-30',
-    matriculeAssure: ''
+    dateFin: '2025-09-30'
   });
   const [error, setError] = useState<string | null>(null);
   const [showGarantiePicker, setShowGarantiePicker] = useState(false);
@@ -118,14 +115,19 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
 
   const loadData = useCallback(async (page: number = 0, append: boolean = false) => {
     if (!user) {
-      console.log('❌ Utilisateur non connecté');
+      console.log('❌ Utilisateur non connecté dans OrdonnanceByGarantieScreen');
+      setInitialLoading(false);
       return;
     }
+
+    console.log('🚀 OrdonnanceByGarantieScreen.loadData démarré - Page:', page, 'Append:', append);
+    console.log('👤 User connecté:', user);
 
     if (append) {
       setLoadingMore(true);
     } else {
       setLoading(true);
+      setInitialLoading(false); // Arrêter l'écran de chargement initial
     }
 
     try {
@@ -138,22 +140,23 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
       const dateDebut = filters.dateDebut || '2025-01-01';
       const dateFin = filters.dateFin || '2025-09-30';
 
-      const apiParams = {
-        userId: Number(user.id),
-        filialeId: user.filiale_id || 1,
-        garantieCodification: filters.garantie && filters.garantie !== '' && filters.garantie !== undefined ? filters.garantie : undefined,
-        matriculeAssure: filters.matriculeAssure ? Number(filters.matriculeAssure) : undefined,
-        prestataireId: user.prestataire_id || undefined,
-        dateDebut,
-        dateFin,
+      const payload = {
+        user_id: user.id,
+        filiale_id: user.filiale_id,
+        garantie_codification: filters.garantie && filters.garantie !== '' && filters.garantie !== undefined ? filters.garantie : undefined,
+        date_debut: `${dateDebut}T00:00:00.000Z`,
+        date_fin: `${dateFin}T00:00:00.000Z`,
+        data: {
+          prestataire_id: user.prestataire_id || user.id,
+        },
         index: page * pageSize,
         size: pageSize,
       };
 
-      console.log('📦 Paramètres API:', apiParams);
+      console.log('📦 Payload OrdonnanceByGarantieScreen:', JSON.stringify(payload, null, 2));
       console.log('🔍 Filtres actuels:', filters);
 
-      const response = await apiService.getOrdonnancesByCriteria(apiParams);
+      const response = await apiService.getOrdonnancesByCriteria(payload);
 
       console.log('✅ Réponse API complète:', response);
       console.log('📊 Nombre d\'items:', response?.items?.length || 0);
@@ -252,23 +255,24 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
     }
   };
 
-  const applyFilters = () => {
+  const applyFilters = async () => {
+    setFilters(tempFilters);
     setCurrentPage(0);
     setOrdonnances([]);
     setFilteredOrdonnances([]);
     setHasMoreData(true);
-    loadData(0, false);
+    await loadData(0, false);
   };
 
-  const clearFilters = () => {
+  const clearFilters = async () => {
     setFilters({
       garantie: undefined,
       dateDebut: '2025-01-01',
-      dateFin: '2025-09-30',
-      matriculeAssure: ''
+      dateFin: '2025-09-30'
     });
     setCurrentPage(0);
     setHasMoreData(true);
+    await loadData(0, false);
   };
 
   const getStatusColor = (statut: string) => {
@@ -475,6 +479,12 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
               ? 'Aucune ordonnance trouvée pour cette garantie' 
               : 'Aucune ordonnance disponible pour le moment'}
           </Text>
+          <TouchableOpacity 
+            style={[styles.refreshButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => loadData(0, false)}
+          >
+            <Text style={styles.refreshButtonText}>Actualiser</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -513,6 +523,15 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
 
   const headerTopPadding = Platform.OS === 'ios' ? 50 : 30;
 
+  useEffect(() => {
+    console.log('🔧 useEffect OrdonnanceByGarantieScreen - Chargement initial');
+    if (user) {
+      loadData(0, false);
+    } else {
+      setInitialLoading(false);
+    }
+  }, [user, loadData]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -526,12 +545,17 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
           >
             <Ionicons name="arrow-back" size={20} color="white" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ordonnances par Garantie</Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Ordonnances par Garantie</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredOrdonnances.length} ordonnance{filteredOrdonnances.length > 1 ? 's' : ''}
+            </Text>
+          </View>
           <TouchableOpacity 
-            style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            style={[styles.headerFilterButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
             onPress={() => setShowFilters(true)}
           >
-            <Ionicons name="filter" size={20} color="white" />
+            <Ionicons name="filter-outline" size={20} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -576,18 +600,6 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
                   </Text>
                   <Ionicons name="chevron-down" size={16} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
-              </View>
-
-              <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
-                <TextInput
-                  style={[styles.filterInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-                  placeholder="Entrez le matricule"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={filters.matriculeAssure}
-                  onChangeText={(text) => handleFilterChange('matriculeAssure', text)}
-                  keyboardType="numeric"
-                />
               </View>
 
               <View style={styles.filterItem}>
@@ -660,7 +672,11 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.garantiePickerContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.garantiePickerContainer} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.garantieScrollContent}
+            >
               {GARANTIES_WITH_ALL.map((garantie) => (
                 <TouchableOpacity
                   key={garantie.code}
@@ -669,8 +685,11 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
                     { 
                       backgroundColor: filters.garantie === garantie.code 
                         ? theme.colors.primary + '20' 
-                        : 'transparent',
-                      borderColor: theme.colors.border
+                        : theme.colors.background,
+                      borderColor: filters.garantie === garantie.code 
+                        ? theme.colors.primary 
+                        : theme.colors.border,
+                      borderWidth: filters.garantie === garantie.code ? 2 : 1,
                     }
                   ]}
                   onPress={() => handleGarantieSelect(garantie)}
@@ -681,13 +700,14 @@ const OrdonnanceByGarantieScreen: React.FC<OrdonnanceByGarantieScreenProps> = ({
                       color: filters.garantie === garantie.code 
                         ? theme.colors.primary 
                         : theme.colors.textPrimary,
-                      fontWeight: filters.garantie === garantie.code ? 'bold' : 'normal'
+                      fontWeight: filters.garantie === garantie.code ? 'bold' : '500',
+                      fontSize: 16,
                     }
                   ]}>
                     {garantie.libelle}
                   </Text>
                   {filters.garantie === garantie.code && (
-                    <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
+                    <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -813,10 +833,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  headerFilterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -868,6 +905,17 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  refreshButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   listContent: {
     paddingVertical: 20,
@@ -1038,8 +1086,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   garantiePickerModal: {
-    width: width * 0.9,
-    maxHeight: '70%',
+    width: width * 0.95,
+    maxHeight: '80%',
     borderRadius: 16,
   },
   garantiePickerHeader: {
@@ -1055,14 +1103,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   garantiePickerContainer: {
-    maxHeight: 400,
+    maxHeight: 500,
+  },
+  garantieScrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   garantieOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 8,

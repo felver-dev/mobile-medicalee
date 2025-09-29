@@ -95,8 +95,8 @@ const PrestataireOrdonnancesScreen: React.FC<PrestataireOrdonnancesScreenProps> 
       title: 'Par Assuré',
       subtitle: 'Voir par assuré',
       icon: 'people-outline',
-      color: '#2196F3',
-      bgColor: '#E3F2FD',
+      color: '#4CAF50',
+      bgColor: '#E8F5E8',
       route: 'OrdonnanceByAssure'
     }
   ];

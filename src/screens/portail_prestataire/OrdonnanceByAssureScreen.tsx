@@ -405,7 +405,7 @@ const OrdonnanceByAssureScreen: React.FC<PrestataireOrdonnancesScreenProps> = ({
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <View style={styles.headerTopPadding} />
         <View style={styles.topBar}>
           <TouchableOpacity 
@@ -486,7 +486,7 @@ const OrdonnanceByAssureScreen: React.FC<PrestataireOrdonnancesScreenProps> = ({
                 <Text style={[styles.filterLabel, { color: theme.colors.textPrimary }]}>
                   Matricule assuré (optionnel)
                 </Text>
-                <View style={[styles.textInput, { borderColor: theme.colors.border }]}>
+                <View style={[styles.textInput, { borderColor: theme.colors.primary }]}>
                   <TextInput
                     style={[styles.textInputField, { color: theme.colors.textPrimary }]}
                     placeholder="Entrer le matricule..."
@@ -547,7 +547,7 @@ const OrdonnanceByAssureScreen: React.FC<PrestataireOrdonnancesScreenProps> = ({
         transparent={true}
         onRequestClose={() => setShowOrdonnanceModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { justifyContent: 'center' }]}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
               <View style={styles.modalIconContainer}>
@@ -722,7 +722,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#2196F3',
     paddingBottom: 20,
   },
   headerTopPadding: {
@@ -953,6 +952,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
