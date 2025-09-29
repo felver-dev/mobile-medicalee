@@ -26,11 +26,20 @@
         "backgroundColor": "#3d8f9d"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.felverdev.med"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-secure-store", "expo-font"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8c3a6c39-47d2-400e-bc1c-e87b0c64f95a"
+      }
+    }
   }
 }
