@@ -188,10 +188,9 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
           setFilteredPrestations(prev => [...prev, ...response.items]);
         }
         
-        // Vérifier s'il y a plus de données
-        // Si nous recevons moins de 10 éléments, c'est la dernière page
-        // Si nous recevons exactement 10 éléments, il pourrait y avoir plus de données
-        setHasMoreData(response.items.length === 10);
+        // Vérifier s'il y a plus de données (logique copiée de MedicamentsScreen)
+        const totalLoaded = (page + 1) * 10;
+        setHasMoreData(totalLoaded < (response.count || 0));
         setCurrentPage(page);
         setError(null);
       } else {
@@ -244,7 +243,7 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
     } else {
       console.log('⏹️ Chargement arrêté - loading:', loading, 'hasMoreData:', hasMoreData);
     }
-  }, [loading, hasMoreData, currentPage, loadData, prestations.length, filteredPrestations.length]);
+  }, [loading, hasMoreData, currentPage, loadData]);
 
   const onRefresh = useCallback(() => {
     loadData(0, true);
@@ -397,13 +396,6 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
           <Text style={[styles.emptyStateText, { color: '#718096' }]}>
             Aucune prestation pour la période sélectionnée
           </Text>
-          <TouchableOpacity 
-            style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
-            onPress={openFilterModal}
-          >
-            <Ionicons name="filter-outline" size={20} color="white" />
-            <Text style={[styles.emptyStateButtonText, { color: 'white' }]}>Modifier les filtres</Text>
-          </TouchableOpacity>
         </View>
       );
     }
@@ -450,22 +442,28 @@ const PrestatairePrestationsScreen: React.FC<PrestatairePrestationsScreenProps> 
       <View style={[styles.header, { backgroundColor: theme.colors.primary, paddingTop: headerTopPadding }]}>
         <View style={styles.topBar}>
           <TouchableOpacity 
-            style={[styles.filterButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
-            onPress={openFilterModal}
+            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            onPress={() => navigation.openDrawer()}
           >
-            <Ionicons name="filter-outline" size={20} color="white" />
+            <Ionicons name="menu" size={20} color="white" />
           </TouchableOpacity>
           <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Mes Prestations</Text>
+            <Text style={styles.headerTitle}>Mes Prestations</Text>
             <Text style={styles.headerSubtitle}>
               {filteredPrestations.length} prestation{filteredPrestations.length > 1 ? 's' : ''}
             </Text>
           </View>
           <TouchableOpacity 
-            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+            style={[styles.headerFilterButton, { backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 0 }]}
+            onPress={openFilterModal}
+          >
+            <Ionicons name="filter" size={20} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.menuButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
             onPress={() => setShowMenuModal(true)}
           >
-            <Ionicons name="ellipsis-vertical" size={24} color="white" />
+            <Ionicons name="ellipsis-vertical" size={20} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -847,12 +845,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filterButton: {
+  headerFilterButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -872,6 +870,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyState: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
     paddingHorizontal: 40,

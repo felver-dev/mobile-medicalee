@@ -446,6 +446,50 @@ export class ApiService {
     console.log("✅ Réponse API getPrescriptionActeByCriteria:", response);
     return response;
   }
+
+  async getOrdonnancesByCriteria(params: {
+    user_id: number;
+    filiale_id: number;
+    garantie_codification?: string;
+    matricule_assure?: number;
+    date_debut: string;
+    date_fin: string;
+    data: {
+      prestataire_id?: number;
+      ordonnance_id?: number;
+      beneficiaire_id?: number;
+    };
+    index: number;
+    size: number;
+  }): Promise<any> {
+    console.log("🔍 Appel API getOrdonnancesByCriteria:", params);
+
+    const payload: any = {
+      user_id: params.user_id,
+      filiale_id: params.filiale_id,
+      date_debut: params.date_debut,
+      date_fin: params.date_fin,
+      data: params.data,
+      index: params.index,
+      size: params.size,
+    };
+
+    // Ajouter les champs optionnels au niveau principal
+    if (params.garantie_codification) {
+      payload.garantie_codification = params.garantie_codification;
+    }
+    
+    if (params.matricule_assure) {
+      payload.matricule_assure = params.matricule_assure;
+    }
+
+    console.log(
+      "📦 Payload getOrdonnancesByCriteria →",
+      JSON.stringify(payload, null, 2)
+    );
+
+    return this.makeRequest("POST", "/ordonnance/getByCriteria", payload);
+  }
 }
 
 export default ApiService;

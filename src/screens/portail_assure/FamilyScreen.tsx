@@ -288,10 +288,10 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
       <View style={[styles.memberHeader, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.memberHeaderLeft}>
           <View style={[styles.memberAvatar, { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
-              {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
-            </Text>
-          </View>
+          <Text style={[styles.memberInitials, { color: theme.colors.textInverse }]}>
+            {item.prenom?.charAt(0) || ''}{item.nom?.charAt(0) || ''}
+          </Text>
+        </View>
           <View style={styles.memberHeaderInfo}>
             <Text style={[styles.memberName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
               {item.prenom} {item.nom}
@@ -324,7 +324,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
               <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Matricule</Text>
               <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                 {item.matricule || 'N/A'}
-              </Text>
+        </Text>
             </View>
           </View>
 
@@ -336,10 +336,10 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
               <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Âge</Text>
               <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                 {calculateAge(item.date_naissance)} ans
-              </Text>
+        </Text>
             </View>
           </View>
-
+        
           {item.civilite_libelle && (
             <View style={styles.memberInfoItem}>
               <View style={styles.memberInfoIcon}>
@@ -358,28 +358,28 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             <View style={styles.memberInfoItem}>
               <View style={styles.memberInfoIcon}>
                 <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
-              </View>
+            </View>
               <View style={styles.memberInfoText}>
                 <Text style={[styles.memberInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
                 <Text style={[styles.memberInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                   {item.college_libelle}
                 </Text>
-              </View>
+            </View>
             </View>
           )}
-        </View>
+      </View>
 
         {/* Contacts et Police en bas */}
         <View style={[styles.memberFooter, { borderTopColor: theme.colors.border }]}>
           <View style={styles.memberFooterLeft}>
-            {item.telephone && (
+        {item.telephone && (
               <View style={styles.memberContactItem}>
                 <Ionicons name="call-outline" size={14} color={theme.colors.textSecondary} />
                 <Text style={[styles.memberContactText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                  {item.telephone}
-                </Text>
-              </View>
-            )}
+              {item.telephone}
+            </Text>
+          </View>
+        )}
             {item.police_libelle && (
               <View style={styles.memberContactItem}>
                 <Ionicons name="shield-outline" size={14} color={theme.colors.textSecondary} />
@@ -389,14 +389,14 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
               </View>
             )}
           </View>
-          {item.email && (
+        {item.email && (
             <View style={styles.memberFooterRight}>
               <Ionicons name="mail-outline" size={14} color={theme.colors.textSecondary} />
               <Text style={[styles.memberEmailText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {item.email}
-              </Text>
-            </View>
-          )}
+              {item.email}
+            </Text>
+          </View>
+        )}
         </View>
       </View>
     </TouchableOpacity>
@@ -411,7 +411,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
           <View style={styles.consultationHeaderLeft}>
             <View style={[styles.consultationIconContainerLarge, { backgroundColor: theme.colors.primaryLight }]}>
               <Ionicons name="medical-outline" size={20} color={theme.colors.primary} />
-            </View>
+          </View>
             <Text style={[styles.consultationTitleLarge, { color: theme.colors.textPrimary }]}>
               Consultation
             </Text>
@@ -441,8 +441,8 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
                 <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Acte</Text>
                 <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
                   {item.acte_libelle || item.libelle}
-                </Text>
-              </View>
+              </Text>
+            </View>
             </View>
 
             <View style={styles.consultationInfoItem}>
@@ -452,15 +452,15 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
               <View style={styles.consultationInfoText}>
                 <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Prestataire</Text>
                 <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-                  {item.prestataire_libelle}
-                </Text>
-              </View>
+                {item.prestataire_libelle}
+              </Text>
             </View>
+          </View>
 
             <View style={styles.consultationInfoItem}>
               <View style={styles.consultationInfoIcon}>
                 <Ionicons name="calendar-outline" size={16} color={theme.colors.primary} />
-              </View>
+        </View>
               <View style={styles.consultationInfoText}>
                 <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Date</Text>
                 <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
@@ -476,10 +476,10 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
               <View style={styles.consultationInfoText}>
                 <Text style={[styles.consultationInfoLabel, { color: theme.colors.textSecondary }]}>Montant</Text>
                 <Text style={[styles.consultationInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-                  {formatAmountDisplay(item.montant)}
-                </Text>
-              </View>
-            </View>
+            {formatAmountDisplay(item.montant)}
+          </Text>
+        </View>
+      </View>
           </View>
 
           {/* Financial Details */}
@@ -604,15 +604,15 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
             <View style={[styles.statusBadge, { backgroundColor: theme.colors.primaryLight }]}>
               <Text style={[styles.statusText, { color: theme.colors.primary }]} numberOfLines={1}>
                 {item.statut_libelle || 'N/A'}
-              </Text>
+            </Text>
             </View>
           </View>
         </View>
         <View style={styles.primeHeaderRight}>
           <Text style={[styles.primeAmount, { color: theme.colors.primary }]} numberOfLines={1}>
             {formatAmountDisplay(item.prime_ttc)}
-          </Text>
-        </View>
+              </Text>
+            </View>
       </View>
 
       {/* Informations principales */}
@@ -633,7 +633,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
           <View style={styles.primeInfoItem}>
             <View style={styles.primeInfoIcon}>
               <Ionicons name="school-outline" size={16} color={theme.colors.textSecondary} />
-            </View>
+        </View>
             <View style={styles.primeInfoText}>
               <Text style={[styles.primeInfoLabel, { color: theme.colors.textSecondary }]}>Collège</Text>
               <Text style={[styles.primeInfoValue, { color: theme.colors.textPrimary }]} numberOfLines={1}>
@@ -785,7 +785,7 @@ const FamilyScreen: React.FC<FamilyScreenProps> = ({ navigation, route }) => {
                 </View>
               </TouchableOpacity>
             </View>
-          </View>
+                </View>
         );
       case 'primes':
         console.log('💰 Rendu primes - Nombre:', primes.length);

@@ -94,13 +94,13 @@ const PrestationsByFamilleScreen: React.FC<PrestationsByFamilleScreenProps> = ({
     
     try {
       const payload = {
-        user_id: user.id,
-        filiale_id: user.filiale_id,
+        user_id: user?.id,
+        filiale_id: user?.filiale_id,
         matricule_assure: filters.matriculeFamille ? parseInt(filters.matriculeFamille) : undefined,
         date_debut: `${filters.dateDebut.toISOString().split('T')[0]}T00:00:00.000Z`,
         date_fin: `${filters.dateFin.toISOString().split('T')[0]}T00:00:00.000Z`,
         data: {
-          prestataire_id: user.prestataire_id || user.id,
+          prestataire_id: user?.prestataire_id || user?.id,
           famille_id: filters.matriculeFamille ? parseInt(filters.matriculeFamille) : undefined
         },
         index: page * 10,
